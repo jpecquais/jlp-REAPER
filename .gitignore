@@ -1,4 +1,2 @@
-# Ignore following
-
-*.exe
 .vscode
+*.exe

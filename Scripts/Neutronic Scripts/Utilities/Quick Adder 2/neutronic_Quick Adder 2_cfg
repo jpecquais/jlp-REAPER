@@ -1,0 +1,67 @@
+config = {
+	["act_search"] = true,
+	["db_scan"] = 3,
+	["dbl_click_speed"] = 0.25,
+	["fav_persist"] = true,
+	["float_mode"] = 4,
+	["fol_search"] = true,
+	["global_types_n"] = 6,
+	["invert_mw"] = false,
+	["mode"] = "ALL",
+	["multi"] = 1.4,
+	["no_sel_tracks"] = 3,
+	["os"] = "Win64",
+	["pin"] = false,
+	["reminder"] = true,
+	["results_max"] = 5,
+	["results_ph"] = true,
+	["row_h"] = 37,
+	["search_delay"] = 0,
+	["theme"] = "dark",
+	["undock"] = true,
+	["version"] = "2.49",
+	["wnd_x"] = 656.0,
+	["wnd_y"] = 348.0
+}
+global_types = {
+	["ACTION"] = true,
+	["CHAIN"] = true,
+	["JS"] = true,
+	["TEMPLATE"] = true,
+	["VST2"] = true,
+	["VST3"] = true
+}
+global_types_order = {
+	[1] = "CHAIN",
+	[2] = "VST2",
+	[3] = "VST3",
+	[4] = "JS",
+	[5] = "TEMPLATE",
+	[6] = "ACTION"
+}
+filter_modes = {
+	["ACTION"] = true,
+	["ALL"] = true,
+	["CHAIN"] = true,
+	["FAV"] = true,
+	["FOLDER"] = true,
+	["FX"] = false,
+	["INSTRUMENT"] = false,
+	["JS"] = true,
+	["TEMPLATE"] = true,
+	["VST2"] = true,
+	["VST3"] = true
+}
+keep_states = {
+	["GROUP_FLAGS"] = true,
+	["GROUP_FLAGS_HIGH"] = true,
+	["ISBUS"] = true,
+	["ITEMS"] = true,
+	["LAYOUTS"] = true,
+	["MAINSEND"] = true,
+	["MUTESOLO"] = false,
+	["NAME"] = false,
+	["REC"] = true,
+	["TRACKHEIGHT"] = true,
+	["VOLPAN"] = false
+}

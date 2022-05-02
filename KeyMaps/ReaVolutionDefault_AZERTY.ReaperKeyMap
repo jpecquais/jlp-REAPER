@@ -1,0 +1,392 @@
+SCR 4 0 RS1ee9bb229dabffe151848d7efa3c10f748e1a1cf "Custom: lyrics.lua" Cockos/lyrics.lua
+SCR 4 32060 RS7d3c_1ee9bb229dabffe151848d7efa3c10f748e1a1cf "Custom: lyrics.lua" Cockos/lyrics.lua
+ACT 0 0 "5f1953ed3dfd1b49a96025b097cd65b4" "Custom: jlp_Hide and Make Inactive" 40730 41312 41593
+SCR 4 0 RS1cbf05b0c4f875518496f34a5ce45adefe05cb67 "Custom: Default_6.0_theme_adjuster.lua" Cockos/Default_6.0_theme_adjuster.lua
+ACT 1 0 "c7ac0dce06b03d409f9c2ff6f4de884f" "Custom: jlp_Split all items at time selection, play cursor or edit cursor" 40289 _SWS_SMARTSPLIT 40289
+ACT 0 0 "5fb1668cf865b543b3d3a0d72c036019" "Custom: jlp_Convert marker to tempo marker" 40625 40173 40626 40801
+ACT 0 0 "bda2df8d8a075f4eafcc4e8161529a6c" "Custom: jlp_Zoom peaks waveform" 2014 40156 2013 40155
+SCR 4 0 RS938f520161f9d69ade1782c399786a18f80b8789 "Custom: jlp_DDP create album index.lua" "reaper-evolution/DDP/jlp_DDP create album index.lua"
+SCR 4 0 RSbd640dfb84764890088367b4c87856e389c4bce4 "Custom: jlp_DDP create track index.lua" "reaper-evolution/DDP/jlp_DDP create track index.lua"
+SCR 4 0 RS39bd655b425178bd780a56a7e4ac2134bdc5518b "Custom: jlp_DDP Session set up.lua" "reaper-evolution/DDP/jlp_DDP Session set up.lua"
+SCR 4 0 RS2a14c890dbac91c939bf827ba7ea2a577a43a3a7 "Custom: jlp_Copy items (obey time selection).lua" "reaper-evolution/Editing/jlp_Copy items (obey time selection).lua"
+SCR 4 0 RSabd26ed08c6a814dddcc75b95eeeaabbe224cbad "Custom: jlp_Cut items (obey time selection).lua" "reaper-evolution/Editing/jlp_Cut items (obey time selection).lua"
+SCR 4 0 RSd92bd2546dc3ffad1edc97ca6f830fcc4508c857 "Custom: jlp_Extend time selection to item under mouse.lua" "reaper-evolution/Editing/jlp_Extend time selection to item under mouse.lua"
+SCR 4 0 RSb1a0ce86e8839d21970c2c9368cfa53c7a88169c "Custom: jlp_Fade in to mouse cursor.lua" "reaper-evolution/Editing/jlp_Fade in to mouse cursor.lua"
+SCR 4 0 RS75f53ecedab680656752f63312ff093ca8adb9ab "Custom: jlp_Fade out to mouse cursor.lua" "reaper-evolution/Editing/jlp_Fade out to mouse cursor.lua"
+SCR 4 0 RSe6fd910746a3587f95af28b3e8de08e3aedb1456 "Custom: jlp_Group ungroup selected item.lua" "reaper-evolution/Editing/jlp_Group ungroup selected item.lua"
+SCR 4 0 RSb3cbf3022e7fbd51ad88c3585351d5855dec81cb "Custom: jlp_Paste items (obey time selection).lua" "reaper-evolution/Editing/jlp_Paste items (obey time selection).lua"
+SCR 4 0 RSda7c3cb4c4c1f82d7b285545b7b6cebd0a931b03 "Custom: jlp_Remove items and time in time selection.lua" "reaper-evolution/Editing/jlp_Remove items and time in time selection.lua"
+SCR 4 0 RS88637ff7e9db41b592cf920731b58753d75808ef "Custom: jlp_Split item under mouse cursor (select right) (don't move edit cursor).lua" "reaper-evolution/Editing/jlp_Split item under mouse cursor (select right) (don't move edit cursor).lua"
+SCR 4 0 RS65517b0c0f6cb8f41978fbbe5b1fa87d33846fd0 "Custom: jlp_Trim item left under mouse cursor.lua" "reaper-evolution/Editing/jlp_Trim item left under mouse cursor.lua"
+SCR 4 0 RS1000e21bc025781e5df8a43ef0011f3263047479 "Custom: jlp_Trim item right under mouse cursor.lua" "reaper-evolution/Editing/jlp_Trim item right under mouse cursor.lua"
+SCR 4 0 RSa4bb4df03782c46556e6a562327ad2329c70b79f "Custom: jlp_Trim item under mouse cursor to time selection.lua" "reaper-evolution/Editing/jlp_Trim item under mouse cursor to time selection.lua"
+SCR 4 0 RS59f7e83c66f07058776c1e97fd4125ac797c78c3 "Custom: jlp_Create folder from selected tracks (follow routing).lua" "reaper-evolution/Routing/jlp_Create folder from selected tracks (follow routing).lua"
+SCR 4 0 RS85efea78ae3146e1629212637dfbef55adcbb044 "Custom: jlp_Create Multichannel Folder.lua" "reaper-evolution/Routing/jlp_Create Multichannel Folder.lua"
+SCR 260 0 RS93a1edaae5d3a8026abce019805ca60cb32314d9 "Custom: jlp_Send Track Channels to Spat Revolution.lua" "reaper-evolution/Routing/jlp_Send Track Channels to Spat Revolution.lua"
+SCR 4 0 RS4fc63af067c276a1933dbd913ecb5ff7cc7045f7 "Custom: jlp_Receive From Spat Revolution.lua" "reaper-evolution/Routing/jlp_Receive From Spat Revolution.lua"
+SCR 4 0 RSe569ef7f8072539f919a80b06a531d6db6515ea0 "Custom: jlp_Insert Spat Revolution Send Track.lua" "reaper-evolution/Routing/jlp_Insert Spat Revolution Send Track.lua"
+SCR 4 0 RS171af5a7d16f6df8e71700545cc6e3c43fe2d116 "Custom: jlp_Insert Spat Revolution Return Track.lua" "reaper-evolution/Routing/jlp_Insert Spat Revolution Return Track.lua"
+SCR 4 0 RS2a1365510e9d81eacc27bfe9d575b32ebe71e965 "Custom: jlp_Add send to selected tracks (PostFader).lua" "reaper-evolution/Routing/jlp_Add send to selected tracks (PostFader).lua"
+SCR 4 0 RSb7cb3d94145ffe5327499041582c54d02cc62b7a "Custom: jlp_Add send to selected tracks (PreFader).lua" "reaper-evolution/Routing/jlp_Add send to selected tracks (PreFader).lua"
+SCR 4 0 RSbdbeda454217025b32bcac6c7bbaa58669a4c5a5 "Custom: jlp_Add send to selected tracks (PreFX).lua" "reaper-evolution/Routing/jlp_Add send to selected tracks (PreFX).lua"
+SCR 4 0 RS5326ddac65bcb58b55221f92224a8271c5f42c93 "Custom: jlp_Create new project tab (import tracks from current project option).lua" "reaper-evolution/Menuing/jlp_Create new project tab (import tracks from current project option).lua"
+SCR 260 0 RS9fce025a1c1a90bb341b923ace295f2a64bd908e "Custom: jlp_Samplerate display.lua" "reaper-evolution/Menuing/jlp_Samplerate display.lua"
+ACT 0 0 "7dd7e29d7e985a4b886f0f5ccb7713d7" "Custom: Global startup action" _RSad80350b32dedecf744a187992636deeb38b0fde
+SCR 4 0 RS9ce47f99e415d03c2feee4a1d363da9b1c0dfc1c "Custom: jlp_Smart mute.lua" "reaper-evolution/Editing/jlp_Smart mute.lua"
+SCR 4 0 RSae9e561a6c3fcbc43e4b0afa6190dc09511f2654 "Custom: jlp_Smart duplicate.lua" "reaper-evolution/Editing/jlp_Smart duplicate.lua"
+SCR 4 0 RS077cfcd10b713f595d9f19140e636013379c041b "Custom: jlp_Playback mode.lua" "reaper-evolution/Various/jlp_Playback mode.lua"
+SCR 516 0 RSeb3c845bb9f9045b7e99b5e75e34abfb12a03a5b "Custom: jlp_Solo toggle.lua" "reaper-evolution/Menuing/jlp_Solo toggle.lua"
+SCR 516 0 RS62d1c0469012d74bfdbdafee8e8f62c3ab2f2f38 "Custom: jlp_Mute toggle.lua" "reaper-evolution/Menuing/jlp_Mute toggle.lua"
+SCR 4 0 RS09e2cdf552c6f6589de5563c81841b9260ad3c6c "Custom: jlp_Paste items (inside time selection).lua" "reaper-evolution/Editing/jlp_Paste items (inside time selection).lua"
+ACT 0 0 "6ddbf2fb39a2eb4dbfbc60d50065a184" "Custom: Set time selection and loop point to items" 41039 40290
+SCR 4 0 RSad80350b32dedecf744a187992636deeb38b0fde "Custom: _installLib.lua" reaper-evolution/Library/_installLib.lua
+SCR 4 0 RScd3a721896144cbf90f103736c733ccc7d94e03d "Custom: jlp_Select next track or next item.lua" "reaper-evolution/Editing/jlp_Select next track or next item.lua"
+SCR 4 0 RS34cf0242c6f15299df009f5ba6602dec40471356 "Custom: jlp_Select previous track or previous item.lua" "reaper-evolution/Editing/jlp_Select previous track or previous item.lua"
+SCR 4 0 RS80bad2ce7f2be19a74be5dd1e719b9cd49512fac "Custom: jlp_Set tracks to A-Format.lua" "reaper-evolution/AudioStream/jlp_Set tracks to A-Format.lua"
+SCR 4 0 RS0cee11759965ce4be3c95c169d4353d994e35650 "Custom: jlp_Set tracks to mono.lua" "reaper-evolution/AudioStream/jlp_Set tracks to mono.lua"
+SCR 4 0 RS93801a9bf0d8df51960713d984b9dfb5eb918b32 "Custom: jlp_Set tracks to stereo.lua" "reaper-evolution/AudioStream/jlp_Set tracks to stereo.lua"
+SCR 4 0 RSf5ffe9959d92e922989b716125113b2d07b3904d "Custom: jlp_Set tracks to B-Format.lua" "reaper-evolution/AudioStream/jlp_Set tracks to B-Format.lua"
+SCR 4 0 RS8e0f7e176e8dc2023e1df01e880befab5ca4b525 "Custom: jlp_Set tracks to binaural.lua" "reaper-evolution/AudioStream/jlp_Set tracks to binaural.lua"
+SCR 4 0 RScbecc738e70e8af66a210648206317e4b1af40d1 "Custom: jlp_Set tracks to MS.lua" "reaper-evolution/AudioStream/jlp_Set tracks to MS.lua"
+SCR 4 0 RSfb27e1ffe4d791955a4b310b32aababc15c1af04 "Custom: jlp_Set tracks to transaural.lua" "reaper-evolution/AudioStream/jlp_Set tracks to transaural.lua"
+SCR 4 0 RSc9f68057dd3eb3c5d4105c1be16d4e49196e8331 "Custom: jlp_Set tracks to UHJ.lua" "reaper-evolution/AudioStream/jlp_Set tracks to UHJ.lua"
+SCR 4 0 RS02847c9576071a693d282a2d5e55a2ec3cc38396 "Custom: jlp_Set tracks to channel based.lua" "reaper-evolution/AudioStream/jlp_Set tracks to channel based.lua"
+SCR 4 0 RS6f514d565b2795ccac6a643e0110a5485c4d79b9 "Custom: jlp_Set tracks to HOA 2D.lua" "reaper-evolution/AudioStream/jlp_Set tracks to HOA 2D.lua"
+SCR 4 0 RS008d2f84b39b467c23aec1dc43c5afd7b33e4a67 "Custom: jlp_Set tracks to HOA 3D.lua" "reaper-evolution/AudioStream/jlp_Set tracks to HOA 3D.lua"
+SCR 4 0 RS519fb4e95e14954867fe7a24c0c93e39c19cc4c8 "Custom: jlp_Insert mono track.lua" "reaper-evolution/AudioStream/jlp_Insert mono track.lua"
+SCR 4 0 RSec818170317c9e51f192916401b00ca78923c701 "Custom: jlp_Insert A-Format track.lua" "reaper-evolution/AudioStream/jlp_Insert A-Format track.lua"
+SCR 4 0 RS1fbc7a35f4b6aa2c691e768919aab65d686a1ab3 "Custom: jlp_Insert B-Format track.lua" "reaper-evolution/AudioStream/jlp_Insert B-Format track.lua"
+SCR 4 0 RSd0375626793d48851e12c64df59157c6c99ab8b3 "Custom: jlp_Insert binaural track.lua" "reaper-evolution/AudioStream/jlp_Insert binaural track.lua"
+SCR 4 0 RS2e6c429638ca6c855c2513877b05347d43d46afd "Custom: jlp_Insert channel based track.lua" "reaper-evolution/AudioStream/jlp_Insert channel based track.lua"
+SCR 4 0 RS6e06624bc8a66cd54c172e7587e0d66231e24555 "Custom: jlp_Insert HOA 2D track.lua" "reaper-evolution/AudioStream/jlp_Insert HOA 2D track.lua"
+SCR 4 0 RS48c4397ea8c03ba7ced37115803cab4db7ac20c6 "Custom: jlp_Insert HOA 3D track.lua" "reaper-evolution/AudioStream/jlp_Insert HOA 3D track.lua"
+SCR 4 0 RS94cd1fb9f909cd7e69ddf80fe7e13dce2648bb34 "Custom: jlp_Insert MS track.lua" "reaper-evolution/AudioStream/jlp_Insert MS track.lua"
+SCR 4 0 RS573a7ee2e05afeb61f91e4197c9c4c1d72dfde2a "Custom: jlp_Insert stereo track.lua" "reaper-evolution/AudioStream/jlp_Insert stereo track.lua"
+SCR 4 0 RSf62c46e8aa058c5a75d4b896762aa776347bfde8 "Custom: jlp_Insert transaural track.lua" "reaper-evolution/AudioStream/jlp_Insert transaural track.lua"
+SCR 4 0 RS6f28b9962b0399cfb978ea869383a7a1a33c9c46 "Custom: jlp_Insert UHJ track.lua" "reaper-evolution/AudioStream/jlp_Insert UHJ track.lua"
+SCR 4 0 RSc065e534e7cca421c222aea99b0477a625f70971 "Custom: jlp_Copy all items in time selection.lua" "reaper-evolution/Editing/jlp_Copy all items in time selection.lua"
+SCR 4 0 RSb3671bb58b6714a1a660d8b30b666fd66f3051cb "Custom: jlp_Insert time and paste items.lua" "reaper-evolution/Editing/jlp_Insert time and paste items.lua"
+SCR 4 0 RS350d3cd888d3ca02de654ec11b56d72776f89764 "Custom: jlp_Duplicate contant of time selection.lua" "reaper-evolution/Editing/jlp_Duplicate contant of time selection.lua"
+SCR 4 0 RSa458ff4780e6d075c5b72e60ac467e6e0ff70cfe "Custom: jlp_Set Edit Cursor to Mouse Position.lua" "reaper-evolution/Editing/jlp_Set Edit Cursor to Mouse Position.lua"
+SCR 260 0 RSf9ec6040cf75749a0658c5c0e02c116de4378145 "Custom: jlp_Special Select Item.lua" "reaper-evolution/Editing/jlp_Special Select Item.lua"
+SCR 4 32060 RS7d3c_e0ab937f3d1c456100def7015df5ebda221902db "Custom: js_Mouse editing - Slice notes.lua" "ReaTeam Scripts/MIDI Editor/js_Mouse editing - Slice notes.lua"
+SCR 4 32062 RS7d3e_e0ab937f3d1c456100def7015df5ebda221902db "Custom: js_Mouse editing - Slice notes.lua" "ReaTeam Scripts/MIDI Editor/js_Mouse editing - Slice notes.lua"
+SCR 4 0 RSe0ab937f3d1c456100def7015df5ebda221902db "Custom: js_Mouse editing - Slice notes.lua" "ReaTeam Scripts/MIDI Editor/js_Mouse editing - Slice notes.lua"
+ACT 0 0 "c462e0126b5106498344890b12848995" "Custom: jlp_Clear time selection and unselect all items" _XENAKIOS_DOSTORECURPOS 40289 40635 _XENAKIOS_DORECALLCURPOS
+ACT 0 0 "142684e854813f4b99e6810d9045b743" "Custom: Select item under mouse cursor and clear time selection" 40528 40635
+SCR 4 0 RSf5ca68443ed631e9942054a6cdb2b0df518b8c03 "Custom: jlp_Select item under mouse (remove time selection if item is outside).lua" "reaper-evolution/Editing/jlp_Select item under mouse (remove time selection if item is outside).lua"
+SCR 4 0 RSac540469f5e85af4af3ced816c2b8f114af9a52c "Custom: jlp_Set time selection to empty space.lua" "reaper-evolution/Editing/jlp_Set time selection to empty space.lua"
+SCR 4 0 RS7092dd6268513f8ca708ba55dd576cf04f7b5aff "Custom: jlp_Unselect all items and clear time selection.lua" "reaper-evolution/Editing/jlp_Unselect all items and clear time selection.lua"
+SCR 4 0 RSa249468c34d83f76e3127f5a29ad4b33cd7da12f "Custom: jlp_Remove items and time selection, tracks, env depending on focus.lua" "reaper-evolution/Editing/jlp_Remove items and time selection, tracks, env depending on focus.lua"
+SCR 4 0 RS61acfe8d7fda4faafb1195c923f18f5652b4e9a1 "Custom: js_Mouse editing - Multi tool.lua" "ReaTeam Scripts/MIDI Editor/js_Mouse editing - Multi tool.lua"
+SCR 4 32060 RS7d3c_61acfe8d7fda4faafb1195c923f18f5652b4e9a1 "Custom: js_Mouse editing - Multi tool.lua" "ReaTeam Scripts/MIDI Editor/js_Mouse editing - Multi tool.lua"
+SCR 4 32062 RS7d3e_61acfe8d7fda4faafb1195c923f18f5652b4e9a1 "Custom: js_Mouse editing - Multi tool.lua" "ReaTeam Scripts/MIDI Editor/js_Mouse editing - Multi tool.lua"
+SCR 260 0 RS9b88eceff278eb9cc702f74494f48c58b8b4799e "Custom: jlp_Bottom half.lua" "reaper-evolution/Editing/jlp_Bottom half.lua"
+SCR 260 0 RSfc85a4a5c1d25ed7f47c236122957b48e443faf5 "Custom: jlp_intercept test.lua" "reaper-evolution/Test/jlp_intercept test.lua"
+SCR 4 0 RS867be586297df8c1d22c6443ddbfdf5dd3487f90 "Custom: jlp_Move selected item(s) snap offset to edit cursor.lua" "reaper-evolution/Editing/jlp_Move selected item(s) snap offset to edit cursor.lua"
+SCR 4 0 RS842ce6201c74f4d2784d93e011de01b0bcdaa8e9 "Custom: jlp_Remove content of time selection, following tracks (moving later items).lua" "reaper-evolution/Editing/jlp_Remove content of time selection, following tracks (moving later items).lua"
+ACT 0 0 "4534b5bb542a6545afefcb776e41f8f3" "Custom: jlp_Nudge items volume (+-1dB)" 2013 41925 2014 41924
+ACT 0 0 "6d960ab23de89941b84e7b6a3cd36b50" "Custom: jlp_Change item pitch by semi-tone" 2013 40204 2014 40205
+ACT 0 0 "0a0b541da074b84495311ac15d1e8526" "Custom: jlp_Change item pitch (cent)" 2013 40206 2014 40207
+SCR 4 0 RS2eb368a7df20dd818f06435b064bec7941899433 "Custom: jlp_Paste in time selection (Special Paste).lua" "reaper-evolution/Editing/jlp_Paste in time selection (Special Paste).lua"
+SCR 4 0 RS3fb6db1ec6e353dbd8de41595fe0e61b7bd0739e "Custom: jlp_Select items bellow current track selection (following time selection).lua" "reaper-evolution/Editing/jlp_Select items bellow current track selection (following time selection).lua"
+SCR 4 0 RS65d8c4d04faf3a4e7f26d75dabf5c30314aeb610 "Custom: jlp_Select items above current track selection (following time selection) copy.lua" "reaper-evolution/Editing/jlp_Select items above current track selection (following time selection) copy.lua"
+SCR 4 0 RS4d582b11b85575618fbd02ca17d404efb7a9786d "Custom: jlp_testReaPack.lua" reaper-evolution/Test/jlp_testReaPack.lua
+SCR 4 0 RS1ee9bb229dabffe151848d7efa3c10f748e1a1cf "Custom: lyrics.lua" Cockos/lyrics.lua
+SCR 4 32060 RS7d3c_1ee9bb229dabffe151848d7efa3c10f748e1a1cf "Custom: lyrics.lua" Cockos/lyrics.lua
+SCR 4 0 RS1cbf05b0c4f875518496f34a5ce45adefe05cb67 "Custom: Default_6.0_theme_adjuster.lua" Cockos/Default_6.0_theme_adjuster.lua
+KEY 255 2280 0 0
+KEY 25 88 0 0
+KEY 5 87 0 0
+KEY 17 48 0 0
+KEY 17 57 0 0
+KEY 17 56 0 0
+KEY 255 218 0 0
+KEY 17 55 0 0
+KEY 17 54 0 0
+KEY 17 53 0 0
+KEY 17 52 0 0
+KEY 17 51 0 0
+KEY 17 50 0 0
+KEY 17 49 0 0
+KEY 255 12008 0 0
+KEY 255 12264 0 0
+KEY 1 113 0 0
+KEY 1 109 0 0
+KEY 0 45 0 0
+KEY 1 89 0 0
+KEY 0 43 0 0
+KEY 0 61 0 0
+KEY 1 107 0 0
+KEY 255 12520 0 0
+KEY 13 77 0 0
+KEY 255 3560 0 0
+KEY 9 115 0 0
+KEY 25 78 0 0
+KEY 17 80 0 0
+KEY 21 71 0 0
+KEY 5 51 0 0
+KEY 5 52 0 0
+KEY 5 53 0 0
+KEY 9 112 0 0
+KEY 9 113 0 0
+KEY 5 54 0 0
+KEY 5 48 0 0
+KEY 255 2536 0 0
+KEY 255 2792 0 0
+KEY 0 64 0 0
+KEY 0 33 0 0
+KEY 9 57 0 0
+KEY 9 56 0 0
+KEY 9 55 0 0
+KEY 9 54 0 0
+KEY 9 53 0 0
+KEY 9 52 0 0
+KEY 9 51 0 0
+KEY 9 50 0 0
+KEY 9 49 0 0
+KEY 9 48 0 0
+KEY 5 69 0 0
+KEY 5 120 0 0
+KEY 5 119 0 0
+KEY 5 118 0 0
+KEY 5 117 0 0
+KEY 0 62 0 0
+KEY 0 44 0 0
+KEY 0 46 0 0
+KEY 5 116 0 0
+KEY 255 13032 0 0
+KEY 1 32804 0 0
+KEY 5 115 0 0
+KEY 1 32803 0 0
+KEY 255 12776 0 0
+KEY 1 120 0 0
+KEY 1 119 0 0
+KEY 1 118 0 0
+KEY 1 117 0 0
+KEY 1 116 0 0
+KEY 1 115 0 0
+KEY 25 90 0 0
+KEY 9 32 0 0
+KEY 17 67 0 0
+KEY 255 3816 0 0
+KEY 25 77 0 0
+KEY 1 122 0 0
+KEY 9 32805 0 0
+KEY 9 32807 0 0
+KEY 1 114 0 0
+KEY 9 221 0 0
+KEY 9 219 0 0
+KEY 5 112 0 0
+KEY 9 32814 0 0
+KEY 25 69 0 0
+KEY 255 11496 0 0
+KEY 255 4072 0 0
+KEY 29 32806 0 0
+KEY 29 32808 0 0
+KEY 25 32806 0 0
+KEY 255 3304 0 0
+KEY 9 32806 0 0
+KEY 255 6888 0 0
+KEY 9 32808 0 0
+KEY 255 6632 0 0
+KEY 1 104 0 0
+KEY 1 98 0 0
+KEY 1 102 0 0
+KEY 1 100 0 0
+KEY 1 103 0 0
+KEY 1 105 0 0
+KEY 1 97 0 0
+KEY 25 32808 0 0
+KEY 255 13288 0 0
+KEY 255 3048 0 0
+KEY 255 13544 0 0
+KEY 5 84 0 0
+KEY 13 84 0 0
+KEY 21 84 0 0
+KEY 255 6376 0 0
+KEY 17 68 0 0
+KEY 5 70 0 0
+KEY 25 86 0 0
+KEY 17 71 0 0
+KEY 0 39 0 0
+KEY 0 34 0 0
+KEY 17 102 0 0
+KEY 17 100 0 0
+KEY 9 102 0 0
+KEY 1 48 0 0
+KEY 1 49 0 0
+KEY 1 50 0 0
+KEY 1 51 0 0
+KEY 1 52 0 0
+KEY 1 53 0 0
+KEY 1 54 0 0
+KEY 1 55 0 0
+KEY 1 56 0 0
+KEY 1 57 0 0
+KEY 9 100 0 0
+KEY 5 55 0 0
+KEY 5 56 0 0
+KEY 5 57 0 0
+KEY 17 77 0 0
+KEY 13 83 0 0
+KEY 1 90 0 0
+KEY 5 66 8 0
+KEY 5 82 9 0
+KEY 13 226 974 0
+KEY 255 10236 977 0
+KEY 255 216 988 0
+KEY 255 248 989 0
+KEY 255 249 990 0
+KEY 255 250 991 0
+KEY 9 226 992 0
+KEY 1 82 1011 0
+KEY 1 84 1012 0
+KEY 17 82 1013 0
+KEY 1 99 1013 0
+KEY 13 71 1156 0
+KEY 1 222 1157 0
+KEY 9 78 40001 0
+KEY 9 81 40004 0
+KEY 1 13 40042 0
+KEY 13 67 40057 0
+KEY 9 187 40078 0
+KEY 1 32781 40157 0
+KEY 1 77 40157 0
+KEY 9 82 40174 0
+KEY 1 96 40175 0
+KEY 9 8 40201 0
+KEY 9 76 40277 0
+KEY 5 32807 40287 0
+KEY 5 32808 40287 0
+KEY 5 32805 40288 0
+KEY 5 32806 40288 0
+KEY 17 13 40346 0
+KEY 1 9 40375 0
+KEY 1 72 40548 0
+KEY 25 112 40549 0
+KEY 1 32801 40625 0
+KEY 1 32802 40626 0
+KEY 1 27 40634 0
+KEY 9 189 40638 0
+KEY 1 76 40687 0
+KEY 5 8 40697 0
+KEY 5 32814 40697 0
+KEY 9 77 40716 0
+KEY 13 65 40717 0
+KEY 57 32808 40727 0
+KEY 1 69 40847 0
+KEY 17 90 40848 0
+KEY 9 84 40859 0
+KEY 9 9 40861 0
+KEY 13 9 40862 0
+KEY 17 65 40926 0
+KEY 9 222 41054 0
+KEY 13 78 41067 0
+KEY 17 32807 41249 0
+KEY 17 32805 41250 0
+KEY 5 76 41314 0
+KEY 1 101 41373 0
+KEY 25 81 41847 0
+KEY 1 78 41848 0
+KEY 9 86 42398 0
+KEY 1 192 _RSac540469f5e85af4af3ced816c2b8f114af9a52c 0
+KEY 13 32806 _XENAKIOS_NUDGEITEMVOLDOWN 0
+KEY 13 32808 _XENAKIOS_NUDGEITEMVOLUP 0
+KEY 1 32813 _SWS_AWTRIMCROP 0
+KEY 1 75 _SWS_AWCONSOLSEL 0
+KEY 1 80 _SWS_AWPANBALANCENEW 0
+KEY 9 67 _SWS_SMARTCOPY 0
+KEY 1 87 _SWS_ITEMLEFTTOCUR 0
+KEY 1 88 _SWS_ITEMRIGHTTOCUR 0
+KEY 57 32806 _SWS_VZOOMFITMIN 0
+KEY 9 66 _c7ac0dce06b03d409f9c2ff6f4de884f 0
+KEY 255 251 _bda2df8d8a075f4eafcc4e8161529a6c 0
+KEY 1 68 _RSb1a0ce86e8839d21970c2c9368cfa53c7a88169c 0
+KEY 1 70 _RS75f53ecedab680656752f63312ff093ca8adb9ab 0
+KEY 1 71 _RSe6fd910746a3587f95af28b3e8de08e3aedb1456 0
+KEY 1 66 _RS88637ff7e9db41b592cf920731b58753d75808ef 0
+KEY 1 81 _RS65517b0c0f6cb8f41978fbbe5b1fa87d33846fd0 0
+KEY 1 83 _RS1000e21bc025781e5df8a43ef0011f3263047479 0
+KEY 17 66 _RSa4bb4df03782c46556e6a562327ad2329c70b79f 0
+KEY 9 71 _RS59f7e83c66f07058776c1e97fd4125ac797c78c3 0
+KEY 25 71 _RS85efea78ae3146e1629212637dfbef55adcbb044 0
+KEY 17 83 _RS2a1365510e9d81eacc27bfe9d575b32ebe71e965 0
+KEY 21 83 _RSb7cb3d94145ffe5327499041582c54d02cc62b7a 0
+KEY 29 83 _RSbdbeda454217025b32bcac6c7bbaa58669a4c5a5 0
+KEY 5 77 _RS9ce47f99e415d03c2feee4a1d363da9b1c0dfc1c 0
+KEY 9 68 _RSae9e561a6c3fcbc43e4b0afa6190dc09511f2654 0
+KEY 1 32 _RS077cfcd10b713f595d9f19140e636013379c041b 0
+KEY 1 32807 _RScd3a721896144cbf90f103736c733ccc7d94e03d 0
+KEY 1 32805 _RS34cf0242c6f15299df009f5ba6602dec40471356 0
+KEY 1 67 _RSc065e534e7cca421c222aea99b0477a625f70971 0
+KEY 1 86 _RSb3671bb58b6714a1a660d8b30b666fd66f3051cb 0
+KEY 13 68 _RS350d3cd888d3ca02de654ec11b56d72776f89764 0
+KEY 1 32814 _RSa249468c34d83f76e3127f5a29ad4b33cd7da12f 0
+KEY 1 8 _RSa249468c34d83f76e3127f5a29ad4b33cd7da12f 0
+KEY 1 186 _RS9b88eceff278eb9cc702f74494f48c58b8b4799e 0
+KEY 1 226 _RS867be586297df8c1d22c6443ddbfdf5dd3487f90 0
+KEY 13 8 _RS842ce6201c74f4d2784d93e011de01b0bcdaa8e9 0
+KEY 13 32814 _RS842ce6201c74f4d2784d93e011de01b0bcdaa8e9 0
+KEY 255 6642 _4534b5bb542a6545afefcb776e41f8f3 0
+KEY 255 5873 _6d960ab23de89941b84e7b6a3cd36b50 0
+KEY 255 5621 _0a0b541da074b84495311ac15d1e8526 0
+KEY 5 86 _RS2eb368a7df20dd818f06435b064bec7941899433 0
+KEY 1 32808 _RS3fb6db1ec6e353dbd8de41595fe0e61b7bd0739e 0
+KEY 1 32806 _RS65d8c4d04faf3a4e7f26d75dabf5c30314aeb610 0
+KEY 5 83 _S&M_CYCLACTION_2 0
+KEY 17 98 0 32060
+KEY 29 32808 0 32060
+KEY 25 98 0 32060
+KEY 0 45 0 32060
+KEY 29 32806 0 32060
+KEY 1 109 0 32060
+KEY 0 61 0 32060
+KEY 0 43 0 32060
+KEY 1 107 0 32060
+KEY 25 104 0 32060
+KEY 13 68 0 32060
+KEY 255 216 0 32060
+KEY 255 251 0 32060
+KEY 255 218 0 32060
+KEY 5 48 0 32060
+KEY 9 32807 0 32060
+KEY 1 102 0 32060
+KEY 1 100 0 32060
+KEY 9 32805 0 32060
+KEY 17 102 0 32060
+KEY 13 32807 0 32060
+KEY 13 32805 0 32060
+KEY 17 100 0 32060
+KEY 1 104 0 32060
+KEY 17 104 0 32060
+KEY 1 98 0 32060
+KEY 17 77 0 32060
+KEY 1 82 1011 32060
+KEY 1 84 1012 32060
+KEY 5 77 40055 32060
+KEY 9 32806 40179 32060
+KEY 9 32808 40180 32060
+KEY 17 32805 40181 32060
+KEY 17 32807 40182 32060
+KEY 1 32805 40183 32060
+KEY 1 32807 40184 32060
+KEY 5 32805 40421 32060
+KEY 5 32807 40422 32060
+KEY 255 250 40430 32060
+KEY 255 249 40431 32060
+KEY 255 248 40432 32060
+KEY 17 32806 40462 32060
+KEY 25 32806 40463 32060
+KEY 17 32808 40464 32060
+KEY 25 32808 40465 32060
+KEY 9 85 40469 32060
+KEY 1 13 40477 32060
+KEY 255 252 40660 32060
+KEY 1 27 40745 32060
+KEY 9 68 40886 32060
+KEY 1 32806 41026 32060
+KEY 1 32808 41027 32060
+KEY 5 32806 41766 32060
+KEY 5 32808 41767 32060
+KEY 1 69 0 32062

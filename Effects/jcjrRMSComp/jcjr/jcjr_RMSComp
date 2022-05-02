@@ -1,0 +1,1583 @@
+desc: jcjr RMS Compressor
+//version: 1.0
+// This effect Copyright (C) 2016 and later James Chandler Jr
+//   http://www.errnum.com
+// License: GPL - http://www.gnu.org/licenses/gpl.html
+//tags: RMS Compressor
+//author: James Chandler Jr
+
+//Stereo Link Mode
+slider1:0<0,1,1{RMS Sum of Left + Right,Maximum RMS of Left or Right}>Stereo Link Mode
+//Lookahead: default val = 100, min val = 1, max val = 200, change increment = 1
+slider2:100<1,200,1>Lookahead [ Pct of Primary A/R ]
+//Primary Attack/Release: default val = 10, min val = 10, max val = 50, change increment = 1
+slider3:10<10,50,1>Primary A/R [ ms ]
+//Secondary Release: default val = 20, min val = 1, max val = 2000, change increment = 1
+slider4:20<1,2000,1>Secondary Release [ ms ]
+//Side Chain HiPass: default val = 10, min val = 10, max val = 1000, change increment = 1
+slider5:10<10,1000,1>Side Chain HiPass [ Hz ]
+//Comp Ratio: default val = 1.5, min val = 1.1, max val = 20, change increment = 0.1 
+slider6:1.5<1.1,20,0.1>Comp Ratio [ N / 1 ]
+//Threshold: default val = -18, min val = -48, max val = -1, change increment = 0.1 
+slider7:-18<-48,-1,0.1>Threshold [ dB ]
+//Knee Width: default val = 3, min val = 0, max val = 24, change increment = 0.5
+slider8:3<0,24,0.5>Knee Width [ dB ]
+//Makeup Gain: default val = 0, min val = 0, max val = 24, change increment = 0.1 
+slider9:0<0,24,0.1>Makeup Gain [ dB ]
+//Wet / Dry Mix: default val = 100, min val = 0, max val = 100, change increment = 1 
+slider10:100<0,100,1>Wet / Dry Mix [ Pct of Wet ]
+
+//GUI Level Meter images
+//background
+filename:0,RMS_Comp_Meter_BG.png
+//foreground
+filename:1,RMS_Comp_Meter_FG.png
+//the tiny peak level indicator
+filename:2,RMS_Comp_Meter_PK.png
+//the tiny slow RMS level indicator
+filename:3,RMS_Comp_Meter_SLO.png
+
+@init
+  //generic utility functions
+
+  //should only call js_malloc within js @init section
+  JS_MALLOC_NO_CLEARMEM = 0;
+  JS_MALLOC_CLEARMEM = 1;
+  next_js_malloc = 0;  
+  function js_malloc(a_size, a_clearmem)
+  local (l_result)
+  (
+    l_result = next_js_malloc;
+    (a_clearmem != 0) ?
+      memset(l_result, 0, a_size);
+    next_js_malloc += a_size;
+    l_result;
+  );
+  
+  LN2_VAL = log(2.0);
+  INV_LN2_VAL = 1.0 / LN2_VAL;
+  //arbitrary limits are imposed, which may or may not be sensible
+  MIN_LOG2_INPUT = 10 ^ -15; //about -300 dB
+  MIN_LOG2_OUTPUT = log(MIN_LOG2_INPUT) * INV_LN2_VAL;
+  MAX_LOG2_INPUT = 10 ^ 15; //about +300 dB
+  MAX_LOG2_OUTPUT = log(MAX_LOG2_INPUT) * INV_LN2_VAL;
+  function Log_2(a_x)
+  local (l_result)
+  (
+    ((a_x += MIN_LOG2_INPUT) >= MAX_LOG2_INPUT) ?
+      l_result = MAX_LOG2_OUTPUT
+    :
+      l_result = log(a_x) * INV_LN2_VAL;
+    l_result;
+  );
+  
+  function Exp_2(a_x)
+  local (l_result)
+  (
+    (a_x <= MIN_LOG2_OUTPUT) ?
+      l_result = MIN_LOG2_INPUT
+    :
+      (a_x >= MAX_LOG2_OUTPUT) ?
+        l_result = MAX_LOG2_INPUT
+      :
+        l_result = exp(a_x * LN2_VAL);
+    l_result;
+  );
+  
+  //Initialize Log_2_Fast() lookup table
+  LOG2_XPONENT_TBL = js_malloc(257, JS_MALLOC_CLEARMEM);
+  i = 1;
+  while (i < 257)
+  (
+    LOG2_XPONENT_TBL[i] = Log_2(i / 256.0);
+    i += 1;
+  );
+  MIN_LOG2_FAST_INPUT = 2.0 ^ -23; //about -138 dB limit number of table idx scaling loops to a max of 3
+  MIN_LOG2_FAST_OUTPUT = Log_2(MIN_LOG2_FAST_INPUT);
+  RBJ_L2COFF_0 = 1.44254494359510;
+  RBJ_L2COFF_1 = -0.71814525675041;
+  RBJ_L2COFF_2 = 0.45754919692582;
+  RBJ_L2COFF_3 = -0.27790534462866;
+  RBJ_L2COFF_4 = 0.12179791068782;
+  RBJ_L2COFF_5 = -0.02584144982967;
+  //Maybe fast or maybe not. AFAIK js doesn't allow float bit-twiddling, so a table lookup is about the only way
+  //Possibly the js native Log() would test faster than this log2 approximation
+  //Fastest performance when -48 dB < a_x < 0 dB
+  //With RBJ's coffs, the result agrees with Log_2() to at least five base-10 decimal places, i.e. x.xxxxx agreement
+  function Log_2_Fast(a_x)
+  local (l_TblIdx, l_result)
+  (
+    l_result = 0;
+    (a_x > MIN_LOG2_FAST_INPUT) ?
+    (
+      while (a_x > 1.0) //hopefully rare and hopefully the input doesn't go too far above 1.0
+      (
+        a_x *= 0.5;
+        l_result += 1.0;
+      );
+      a_x *= 256.0;
+      while (a_x < 1.0)
+      (
+        a_x *= 256.0;
+        l_result -= 8;
+      );
+      l_TblIdx = floor(a_x);
+      l_result += LOG2_XPONENT_TBL[l_TblIdx];
+      a_x = (a_x / l_TblIdx) - 1; //a_x should be in the range of 0 -> 1
+      l_result += a_x * (RBJ_L2COFF_0 + a_x * (RBJ_L2COFF_1 + a_x * (RBJ_L2COFF_2 + a_x * 
+                (RBJ_L2COFF_3 + a_x * (RBJ_L2COFF_4 + a_x * RBJ_L2COFF_5))))); //maybe calc should be segmented for better accuracy?
+    )
+    : //else a_x <= MIN_LOG2_FAST_INPUT
+      l_result = MIN_LOG2_FAST_OUTPUT;
+    l_result;
+  );
+  
+  //initialize Exp_2_Fast lookup table
+  EXP2_XPONENT_TBL = js_malloc(65, JS_MALLOC_CLEARMEM);
+  _i = -32;
+  while (_i < 33)
+  (
+    EXP2_XPONENT_TBL[_i + 32] = 2.0 ^ _i;
+    _i += 1;
+  );
+  MIN_EXP2_FAST_INPUT = -32.0; //about -192 dB
+  MIN_EXP2_FAST_OUTPUT = 2.0 ^ MIN_EXP2_FAST_INPUT; //about -192 dB
+  MAX_EXP2_FAST_INPUT = 32.0; //about +192 dB
+  MAX_EXP2_FAST_OUTPUT = 2.0 ^ MAX_EXP2_FAST_INPUT; //about +192 dB
+  RBJ_E2COFF_0 = 0.69303212081966;
+  RBJ_E2COFF_1 = 0.24137976293709;
+  RBJ_E2COFF_2 = 0.05203236900844;
+  RBJ_E2COFF_3 = 0.01355574723481;
+  //Using RBJ's coffs, the result agrees with Exp_2() above to at about five base-10 significant figures
+  function Exp_2_Fast(a_x)
+  local (l_TblIdx, l_result)
+  (
+    (a_x <= MIN_EXP2_FAST_INPUT) ?
+      l_result = MIN_EXP2_FAST_OUTPUT
+    :
+      (a_x >= MAX_EXP2_FAST_INPUT) ?
+        l_result = MAX_EXP2_FAST_OUTPUT
+      :
+      (
+        a_x += 32.0;
+        l_TblIdx = floor(a_x);
+        a_x -= l_TblIdx; //fractional part into a_x
+        l_result = EXP2_XPONENT_TBL[l_TblIdx];
+        l_result *= 1.0 + a_x * (RBJ_E2COFF_0 + a_x * (RBJ_E2COFF_1 + a_x * (RBJ_E2COFF_2 + a_x * RBJ_E2COFF_3)));
+      );
+    l_result;
+  );    
+  
+  LOG2_TO_DB_AMPLITUDE_MUL = 20.0 * log10(2.0);
+  LOG2_TO_DB_POWER_MUL = 10.0 * log10(2.0);
+  DB_AMPLITUDE_TO_LOG2_MUL = 1.0 / LOG2_TO_DB_AMPLITUDE_MUL;
+  DB_POWER_TO_LOG2_MUL = 1.0 / LOG2_TO_DB_POWER_MUL;
+  function DB_Amplitude_To_Log2(a_DBVal) //given a dB value, calc the equivalent as raw log2 value
+  (
+    a_DBVal * DB_AMPLITUDE_TO_LOG2_MUL;
+  );
+  
+  function DB_Power_To_Log2(a_DBVal) //given a dB value, calc the equivalent as raw log2 value
+  (
+    a_DBVal * DB_POWER_TO_LOG2_MUL;
+  );
+  
+  function Log2_To_DB_Amplitude(a_Log2Val) //given a raw log2 value, calc the equivalent as dB
+  (
+    a_Log2Val * LOG2_TO_DB_AMPLITUDE_MUL;
+  );
+  
+  function Log2_To_DB_Power(a_Log2Val) //given a raw log2 value, calc the equivalent as dB
+  (
+    a_Log2Val * LOG2_TO_DB_POWER_MUL;
+  );
+  
+  LN10_VAL = log(10.0);
+  INV_LN10_VAL = 1.0 / LN10_VAL;
+  DB_LN10_AMPLITUDE_MUL = LN10_VAL * 0.05;
+  DB_LN10_POWER_MUL = LN10_VAL * 0.1;
+  AMPLITUDE_LN10_DB_MUL = 20.0 * INV_LN10_VAL;
+  POWER_LN10_DB_MUL = 10.0 * INV_LN10_VAL;
+  function DB_To_Amplitude(a_DBVal)
+  (
+    exp(a_DBVal * DB_LN10_AMPLITUDE_MUL);
+  );
+  
+  function DB_To_Power(a_DBVal)
+  (
+    exp(a_DBVal * DB_LN10_POWER_MUL);
+  );
+  
+  function Amplitude_To_DB(a_AmplitudeVal)
+  (
+    log(a_AmplitudeVal) * AMPLITUDE_LN10_DB_MUL;
+  );
+  
+  function Power_To_DB(a_PowerVal)
+  (
+    log(a_PowerVal) * POWER_LN10_DB_MUL;
+  );
+  
+  //SimpleDelay object
+  //a_DelayLenSecs: Delay in seconds
+  //a_MaxDelayLenSecs: Maximum Delay in seconds. For instance, if initted for a delay of 10 ms, 
+  //                 : but the program could possibly increase the delay up to a Max Delay of 100 ms, 
+  //                 : then we could pre-allocate sufficient memory for the max expected delay of 100 ms
+  function SimpleDelay_Init(a_DelayLenSecs, a_MaxDelayLenSecs, a_SampRate)
+  (
+    this.SR = a_SampRate;
+    a_DelayLenSecs = max(a_DelayLenSecs, 0.0001);
+    a_MaxDelayLenSecs = max(a_MaxDelayLenSecs, a_DelayLenSecs + 0.001);
+    this.MaxLenSmps = max(ceil(a_MaxDelayLenSecs * this.SR), 8);
+    this.LenSmps = max(ceil(a_DelayLenSecs * this.SR), 4);
+    this.DelayBuf = js_malloc(this.MaxLenSmps, JS_MALLOC_CLEARMEM);
+    this.HeadIdx = this.LenSmps;
+    this.TailIdx = 0;
+  );
+  
+  function SimpleDelay_SetDelayTime(a_DelayLenSecs)
+  local (l_LenSmps)
+  (
+    l_LenSmps = max(min(ceil(a_DelayLenSecs * this.SR), this.MaxLenSmps - 1), 4);
+    this.LenSmps = l_LenSmps;
+    this.TailIdx = this.HeadIdx - this.LenSmps;
+    (this.TailIdx < 0) ?
+      this.TailIdx += this.MaxLenSmps;
+  );
+  
+  function SimpleDelay_ZeroMemoryAndIdx()
+  (
+    memset(this.DelayBuf, 0.0, this.MaxLenSmps);
+    this.HeadIdx = this.LenSmps;
+    this.TailIdx = 0;
+  );
+  
+  //Store a_InSamp and return the delayed sample
+  function SimpleDelay_DoSamp(a_InSamp)
+  local (l_result)
+  (
+    this.DelayBuf[this.HeadIdx] = a_InSamp;
+    l_result = this.DelayBuf[this.TailIdx];
+    ((this.HeadIdx += 1) >= this.MaxLenSmps) ?
+      this.HeadIdx = 0;
+    ((this.TailIdx += 1) >= this.MaxLenSmps) ?
+      this.TailIdx = 0;
+    l_result;
+  );
+  
+  //RunningSum object for boxcar rectangular FIR filtering
+  //Example for 50 ms length window:
+  //  RMS_RS_L.RunningSum_Init(0.050, 0, srate);
+  //a_RSLenSecs: Num seconds of the running sum mean (usually less than 1 second)
+  //a_RSMaxLenSecs: If it is possible that the RunSum len might need changing during runtime, specify max expected RunSum time
+  //              : If you never intend to resize the RunSum length after initialization, you can pass zero for a_RSMaxLenSecs
+  function RunningSum_Init(a_RSLenSecs, a_RSMaxLenSecs, a_SampRate)
+  (
+    this.RunSumLenChanged = 0;
+    a_RSLenSecs = max(a_RSLenSecs, 0.0001);
+    a_RSMaxLenSecs = max(a_RSMaxLenSecs, a_RSLenSecs + 0.001);
+    this.SR = a_SampRate;
+    this.MaxLenSmps = max(ceil(a_RSMaxLenSecs * this.SR), 8);
+    this.LenSmps = max(ceil(a_RSLenSecs * this.SR), 4);
+    this.RunSumBuf = js_malloc(this.MaxLenSmps, JS_MALLOC_CLEARMEM);
+    this.MeanMul = 1.0 / this.LenSmps;
+    
+    //To reduce the odds of cumulative rounding errors causing running sum underflow.
+    //Bias so that the RunSum minimum possible squared mean = -224 dB
+    //Which would be a minimum RMS measurement of -112 dB
+    //This bias would cause approximately +0.263 dB error at -100 dB RMS
+    //RMS measurements larger than -100 dB would have progressively smaller error  
+    this.RunSumFloor = this.LenSmps * .00000000000625;
+    this.HeadIdx = this.LenSmps;
+    this.TailIdx = 0;
+    this.SampsUntilNextRecalc = this.SR; //recalc RunSum approx 1 per second
+    this.RunSum = this.RunSumFloor;
+  );
+  
+  //Call to re-size the RunSumLen after RunningSum_Init() was already called
+  function RunningSum_SetRunSumLen(a_RSLenSecs)
+  local (l_LenSmps)
+  (
+    l_LenSmps = max(min(ceil(a_RSLenSecs * this.SR), this.MaxLenSmps - 1), 4);
+    this.LenSmps = l_LenSmps;
+    this.RunSumLenChanged = 1; //this triggers a recalc next time RunningSum_DoSamp() is called
+  );
+  
+  //Calc per-sample running sum smoothing
+  //Example:
+  //  RMS_Val = sqrt(RMS_RunSum.RunningSum_DoSamp(spl0^2));
+  function RunningSum_DoSamp(a_InSamp)
+  local (l_result, l_RunSum, l_Idx, l_Count, l_CountTop)
+  (
+    (this.RunSumLenChanged != 0) ? //flag to change runsum length and recalculate the runsum
+    //The possible full re-calc in DoSamp() is not optimal. However, it seems complicated to do a proper js mutex.
+    //Without a mutex, there could be thread contention between the @slider thread and the @sample thread
+    //During the short period when the changed runsum length gets recalculated
+    //Doing the full-recalc here should avoid most or all thread contention
+    (
+      this.RunSumLenChanged = 0;
+      this.MeanMul = 1.0 / this.LenSmps;
+      this.RunSumFloor = this.LenSmps * .00000000000625;
+      this.TailIdx = this.HeadIdx - this.LenSmps;
+      (this.TailIdx < 0) ?
+        this.TailIdx += this.MaxLenSmps;  
+      l_RunSum = this.RunSumFloor;
+      l_Idx = this.TailIdx;
+      l_Count = 0;
+      l_CountTop = this.LenSmps;
+      while (l_Count < l_CountTop) //recalc RunSum
+      (
+        l_RunSum += this.RunSumBuf[l_Idx];
+        ((l_Idx += 1) >= this.MaxLenSmps) ?
+          l_Idx = 0;
+        l_Count += 1;
+      );
+      this.RunSum = l_RunSum;
+    );
+    //The usual per-sample code, except when a relatively rare runtime resize gets called
+    this.RunSumBuf[this.HeadIdx] = a_InSamp;
+    this.RunSum += (a_InSamp - this.RunSumBuf[this.TailIdx]);
+    ((this.HeadIdx += 1) >= this.MaxLenSmps) ?
+      this.HeadIdx = 0;
+    ((this.TailIdx += 1) >= this.MaxLenSmps) ?
+      this.TailIdx = 0;
+    l_result = this.RunSum * this.MeanMul;
+  );
+  
+  //Periodically recalc RunSum in the js @block section, to avoid gradual accumulated rounding errors
+  //The function recalcs RunSum about once per second
+  //Usually it takes MUCH longer than 1 second for serious offsets to accumulate
+  //Example:
+  //  RMS_RunSum.RunningSum_PossiblyRecalcRunSum(samplesblock);
+  function RunningSum_PossiblyRecalcRunSum(a_NumSampsInBlock)
+  local (l_RunSum, l_Idx, l_Count, l_CountTop)
+  (
+    ((this.SampsUntilNextRecalc -= a_NumSampsInBlock) < 0) ?
+    (
+      this.SampsUntilNextRecalc += this.SR; //reset the counter
+      l_RunSum = this.RunSumFloor;
+      l_Idx = this.TailIdx;
+      l_Count = 0;
+      l_CountTop = this.LenSmps;
+      while (l_Count < l_CountTop) //recalc RunSum
+      (
+        l_RunSum += this.RunSumBuf[l_Idx];
+        ((l_Idx += 1) >= this.MaxLenSmps) ?
+          l_Idx = 0;
+        l_Count += 1;
+      );
+      this.RunSum = l_RunSum;
+    );
+  );
+  
+  //First order trapezoidal filter object
+  //Code adapted from Vadim Zavalishin's book "The Art of VA Filter Design"
+  FIRST_ORD_FILTTYPE_LOPASS = 0;
+  FIRST_ORD_FILTTYPE_HIPASS = 1;
+  FIRST_ORD_FILTTYPE_ALLPASS_ADV = 2; //+180 degrees phase shift at DC, descending to 0 degrees phase shift at nyquist
+  FIRST_ORD_FILTTYPE_ALLPASS_RET = 3; //0 degrees phase shift at DC, descending to -180 degrees phase shift at nyquist
+  
+  //FiltTyps: Use one of the above to set the return value of FirstOrdTrapezoidFilter_DoSamp()
+  //        : However, all values are simultaneously accessible after calling DoSamp() by reading
+  //        : TheFilter.lp, TheFilter.hp, TheFilter.ap_A, TheFilter.ap_R
+  //a_FiltFC: Filter center frequency in Hz
+  //a_SampRate: Samplerate of filter
+  function FirstOrdTrapezoidFilter_Init(a_FiltType, a_FiltFC, a_SampRate)
+  (
+    this.FT = a_FiltType;
+    this.SR = a_SampRate;
+    this.Nyquist = floor(this.SR * 0.5);
+    this.FC = min(a_FiltFC, this.Nyquist - 1);
+
+    this.s = 0.0;
+    this.lp = 0;
+    this.hp = 0;
+    this.ap_A = 0;
+    this.ap_R = 0;
+    
+    //calculate coefficient 
+    this.g = tan($pi * this.FC / this.SR);
+    this.g /= (1 + this.g);
+  );
+  
+  function FirstOrdTrapezoidFilter_SetFC(a_FiltFC)
+  (
+    this.FC = min(a_FiltFC, this.Nyquist - 1);
+    this.g = tan($pi * this.FC / this.SR);
+    this.g /= (1 + this.g);
+  );
+  
+  //Returns the filtered sample
+  function FirstOrdTrapezoidFilter_DoSamp(a_InSamp)
+  local (l_v, l_result)
+  (
+    //Vadim Zavalishin code
+    //v = (x-z1_state)*g/(1+g);
+    //y = v + z1_state;
+    //z1_state = y + v;
+    l_v = (a_InSamp - this.s) * this.g;
+    this.lp = l_v + this.s;
+    this.s = this.lp + l_v;
+    this.hp = a_InSamp - this.lp;
+    this.ap_A = this.hp - this.lp;
+    this.ap_R = this.lp - this.hp;
+    
+    (this.FT == FIRST_ORD_FILTTYPE_LOPASS) ?
+      l_result = this.lp
+    :
+      (this.FT == FIRST_ORD_FILTTYPE_HIPASS) ?
+        l_result = this.hp
+      :
+        (this.FT == FIRST_ORD_FILTTYPE_ALLPASS_ADV) ?
+          l_result = this.ap_A
+        :
+          l_result = this.ap_R;
+    l_result;
+  );
+  
+  //Trapezoid-based AR Envelope
+  //Adapted from Vadim Zavalishin's book "The Art of VA Filter Design" First Order Filter example
+  //An Attack-Release smoother based on two cascaded first-order filters.
+  //This was designed to operate on input values >= 0
+  //To use as an audio follower, rectify the audio according to your taste, before passing the rectified audio to the AREnvelope object.
+  
+  AR_ENV_POLARITY_POSITIVE = 0.0; //Attack upward, Release downward
+  AR_ENV_POLARITY_NEGATIVE = 1.0; //Attack downward, Release upward
+  AR_ENV_TC_TYPE_SECS = 0.0; //Use Attack/Release times specified in Seconds
+  AR_ENV_TC_TYPE_SAMPS = 1.0; //Use Attack/Release times specified in Samples
+  
+  AR_ENV_ATK_TC_SCALE_NONE = 1.0; //Both AR Env and conventional first order LP filter attack to -4 dB of peak in 1 TC
+  AR_ENV_ATK_TC_SCALE_MINUS_6_DB = 1.443; //Adjust so that the first 1 TC attacks to -6 dB of peak
+  AR_ENV_ATK_TC_SCALE_MINUS_3_DB = 0.814; //Adjust so that the first 1 TC attacks to -3 dB of peak
+  AR_ENV_ATK_TC_SCALE_MINUS_1_DB = 0.448; //Adjust so that the first 1 TC attacks to -1 dB of peak
+  
+  AR_ENV_REL_TC_SCALE_NONE = 1.0;
+  AR_ENV_REL_TC_SCALE_MATCH_1TC = 0.467; //Match conventional LP filter release of -8.7 dB after the first 1 TC
+  AR_ENV_REL_TC_SCALE_MATCH_2TC = 0.570; //Match conventional LP Filter release of -17.4 dB after the first 2 TC
+  AR_ENV_REL_TC_SCALE_MINUS_6_DB = 0.6; //Adjust so that the first 1 TC releases to -6 dB of peak
+  AR_ENV_REL_TC_SCALE_MINUS_3_DB = 0.93; //Adjust so that the first 1 TC releases to -3 dB of peak
+  AR_ENV_REL_TC_SCALE_MINUS_1_DB = 1.8; //Adjust so that the first 1 TC releases to -1 dB of peak 
+  
+  //a_ARPolarity: if AR_ENV_POLARITY_POSITIVE, attacks positive and releases negative. 
+  //              if AR_ENV_POLARITY_NEGATIVE, attacks negative and releases positive.
+  //a_AttackTime: Attack time entered either as Seconds or Samples, according to arg a_TimeConstantType
+  //a_AtkTCScale: Scale attack time faster or slower than the standard Physics exponential TC definition.
+  //              Some possibles listed above, AR_ENV_ATK_TC_SCALE_NONE etc.
+  //              The attack mechanism is two cascaded first-order filters, 
+  //                but has similar curve to a first-order lowpass filter.
+  //a_ReleaseTime: Release time either in Seconds or Samples, according to arg a_TimeConstantType
+  //a_RelTCScale: Scale release time faster or slower than the standard Physics exponential TC definition.
+  //              Some possibles listed above, AR_ENV_REL_TC_SCALE_MATCH_1TC etc.
+  //              The release mehanism is two stacked first-order lowpass filters, which makes smoother release.
+  //              However, a second-order release curve doesn't match a first-order release curve.
+  //              a_RelTCScale can match the release to an expected first-order release curve at a certain time,
+  //                or other values which may be convenient according to application.
+  //              For instance, AR_ENV_REL_TC_SCALE_MATCH_2TC should decay the same amount 
+  //                as a first-order filter after 2 Time constants
+  //              AR_ENV_REL_TC_SCALE_MINUS_1_DB shound release -1 dB after the first 1 TC
+  //              AR_ENV_REL_TC_SCALE_MINUS_6_DB should release -6 dB after the first 1 TC
+  //a_TimeConstantType: Specify Time Constant in Seconds with the arg AR_ENV_TC_TYPE_SECS
+  //                    Specify Time Constant in Samples with the arg AR_ENV_TC_TYPE_SAMPS
+  //a_AROutputGain: Pass 1.0 for unity gain. Pass some other value if the envelope output should be scaled.
+  //a_SampRate: js always "knows" the plugin's samplerate, but the SampRate is specified so the Envelope can be used in oversampled code.
+  //
+  //Example: Initted in the js @init section--
+  //
+  //MyEnv.AREnvelope_Init(AR_ENV_POLARITY_POSITIVE, //polarity
+  //                      0.01, //attack time seconds
+  //                      AR_ENV_ATK_TC_SCALE_MINUS_3_DB, //attack time scaling
+  //                      0.1, //release time seconds
+  //                      AR_ENV_REL_TC_SCALE_MATCH_2TC, //releas time scaling
+  //                      AR_ENV_TC_TYPE_SECS, //time constant type
+  //                      1.0, //envelope gain
+  //                      srate); //samplerate
+  function AREnvelope_Init(a_ARPolarity, a_AttackTime, a_AtkTCScale, a_ReleaseTime, a_RelTCScale, a_TimeConstantType, a_AROutputGain, a_SampRate)
+  local (l_Coff)
+  (
+    this.Env_FirstStage = 0;
+    this.Env_SecondStage = 0;
+    this.Env_Output = 0;
+    this.s_FirstStage = 0;
+    this.s_SecondStage = 0;
+    this.Polarity = a_ARPolarity;
+    this.TCType = a_TimeConstantType;
+    this.OutGain = a_AROutputGain;
+    (abs(this.OutGain) <= 0.01) ? //use unity gain (non-scaled) if output gain is accidentally set to < -40 dB, or zero, or negative
+    (
+      (this.OutGain >= 0.0) ?
+        this.OutGain = 0.01
+      :
+        this.OutGain = 1.0;
+    );
+    this.SR = a_SampRate;
+    
+    this.AtkTCSamps = a_AttackTime;
+    this.RelTCSamps = a_ReleaseTime;
+    this.AtkScale = a_AtkTCScale;
+    this.RelScale = a_RelTCScale;
+    (this.TCType == AR_ENV_TC_TYPE_SECS) ?
+    (
+      this.AtkTCSamps *= this.SR;
+      this.RelTCSamps *= this.SR;
+    );
+    
+    this.MinAtkSamps = 0.0001 * this.SR; //Minimum Attack of 0.1 ms
+    this.MinRelSamps = 0.002 * this.SR; //Minimum Release of 2 ms
+    this.AtkTCSamps = max(this.AtkTCSamps, this.MinAtkSamps);
+    this.RelTCSamps = max(this.RelTCSamps, this.MinRelSamps);
+  
+    //In attempt to "ride peaks" about the same regardless of attack/release times--
+    //At fairly short attack/release times, the first filter stage does near-instant attack and most of the release.
+    //Then the second filter stage does most of the attack.
+    //At longer attack/release tmes, the second stage continues do do most of the attack,
+    //  but the release time is evenly divided between both stages.
+    this.RelTCSamps_FirstStage = this.RelTCSamps;
+    this.RelTCSamps_SecondStage = this.MinRelSamps;
+    (this.RelTCSamps > (this.MinRelSamps * 3)) ? 
+    //If release time > 6 ms, use the same release time for both stages
+    //  and apply Release scaling
+    //If release time <= 6 ms, do most of the release in the first stage and do not apply Release scaling
+    (
+        this.RelTCSamps_FirstStage = this.RelTCSamps * this.RelScale; 
+        this.RelTCSamps_SecondStage = this.RelTCSamps_FirstStage; 
+    );
+  
+    (this.AtkTCSamps > (this.MinAtkSamps * 20)) ? //if attack time > 2 ms, apply Attack scaling
+      this.AtkTCSamps *= this.AtkScale;
+    
+    //vadim's pre-warped calc for g, translated to TimeConstant rather than Frequency, ought to be--
+    //[Method A]  g = tan(1.0 / (2.0 * TimeConstant * SampleRate));
+    //            g /+ (1 + g);
+    //However comparing performance against the un-warped equivalent of the first line--
+    //[Method B]  g = 1.0 / (2.0 * TimeConstant * SampleRate);
+    //Also comparing performance against another calculation method--
+    //[Method C]  g = 1.0 - exp(-1.0 / (2.0 * TimeConstant * SampleRate));
+    //Testing TimeConstants ranging from 0.1 to 0.0001 seconds, show "nearly identical" results.
+    //Method C MAY be slightly better, but results are all so similar, that Method B was chosen because it is fastest.
+    //The differences would be most apparent at very short TimeConstants, less than 0.1 ms, and I don't expect to use TC that short 
+    //calc attack and release coffs for fisrst and second filter stages
+    this.ACoff_FirstStage = 1.0 / (2.0 * this.MinAtkSamps); //0.1 ms attack for the first attack stage, about 4.4 samples at 44100 samprate
+    this.ACoff_FirstStage /= (1 + this.ACoff_FirstStage);
+    this.RCoff_FirstStage = 1.0 / (2.0 * this.RelTCSamps_FirstStage);
+    this.RCoff_FirstStage /= (1 + this.RCoff_FirstStage);
+  
+    this.ACoff_SecondStage = 1.0 / (2.0 * this.AtkTCSamps);
+    this.ACoff_SecondStage /= (1 + this.ACoff_SecondStage);
+    this.RCoff_SecondStage = 1.0 / (2.0 * this.RelTCSamps_SecondStage); //2 ms release for the second release stage, measurably smoother transitions
+    this.RCoff_SecondStage /= (1 + this.RCoff_SecondStage);
+    
+    (this.Polarity == AR_ENV_POLARITY_NEGATIVE) ? //if negative polarity, swap attack coffs for release coffs
+    (
+      l_Coff = this.RCoff_FirstStage;
+      this.RCoff_FirstStage = this.ACoff_FirstStage;
+      this.ACoff_FirstStage = l_Coff;
+      l_Coff = this.RCoff_SecondStage;
+      this.RCoff_SecondStage = this.ACoff_SecondStage;
+      this.ACoff_SecondStage = l_Coff;
+    );
+  );
+  
+  //Adjust Release at run-time after the object has been initted
+  //Possiply called from js sections @slider, @sample, or @block
+  //Example--
+  //MyEnv.AREnvelope_SetRelease(TheNewReleaseTime);
+  function AREnvelope_SetRelease(a_ReleaseTime)
+  (
+    this.RelTCSamps = a_ReleaseTime;
+    (this.TCType == AR_ENV_TC_TYPE_SECS) ?
+      this.RelTCSamps *= this.SR;
+    this.RelTCSamps = max(this.RelTCSamps, this.MinRelSamps);
+    this.RelTCSamps_FirstStage = this.RelTCSamps;
+    this.RelTCSamps_SecondStage = this.MinRelSamps;
+    (this.RelTCSamps > (this.MinRelSamps * 3)) ? //if release time > 6 ms
+    (
+        this.RelTCSamps_FirstStage = this.RelTCSamps * this.RelScale; 
+        this.RelTCSamps_SecondStage = this.RelTCSamps_FirstStage; 
+    );  
+    (this.Polarity != AR_ENV_POLARITY_NEGATIVE) ?
+    (  
+      this.RCoff_FirstStage = 1.0 / (2.0 * this.RelTCSamps_FirstStage);
+      this.RCoff_FirstStage /= (1 + this.RCoff_FirstStage);
+      this.RCoff_SecondStage = 1.0 / (2.0 * this.RelTCSamps_SecondStage); //2 ms release for the second release stage, measurably smoother transitions
+      this.RCoff_SecondStage /= (1 + this.RCoff_SecondStage);
+    )
+    :
+    (  
+      this.ACoff_FirstStage = 1.0 / (2.0 * this.RelTCSamps_FirstStage);
+      this.ACoff_FirstStage /= (1 + this.RCoff_FirstStage);
+      this.ACoff_SecondStage = 1.0 / (2.0 * this.RelTCSamps_SecondStage); //2 ms release for the second release stage, measurably smoother transitions
+      this.ACoff_SecondStage /= (1 + this.RCoff_SecondStage);
+    )
+  );
+  
+  //Process input sample a_InSamp, and output the Envelope value
+  //Typically called in js @sample section
+  //Example:
+  //TheLeftEnvelopeVal = sqrt(MyEnv.AREnvelope_DoSamp(spl0 * spl0));
+  function AREnvelope_DoSamp(a_InSamp)
+  local (l_v, l_g)
+  (
+    a_InSamp = max(a_InSamp, 0);
+    (a_InSamp <= this.s_FirstStage) ? //select first stage filter coff according to the input level
+      l_g = this.RCoff_FirstStage
+    :
+      l_g = this.ACoff_FirstStage;
+    l_v = (a_InSamp - this.s_FirstStage) * l_g; //solve the first stage trapezoidal filter
+    this.Env_FirstStage = l_v + this.s_FirstStage;
+    this.s_FirstStage = this.Env_FirstStage + l_v;
+  
+    (this.Env_FirstStage <= this.s_SecondStage) ? //select second stage filter coff according to the level of the first filter
+      l_g = this.RCoff_SecondStage
+    :
+      l_g = this.ACoff_SecondStage;
+    l_v = (this.Env_FirstStage - this.s_SecondStage) * l_g; //solve the second stage trapezoidal filter
+    this.Env_SecondStage = l_v + this.s_SecondStage;
+    this.s_SecondStage = this.Env_SecondStage + l_v;
+    
+    this.Env_Output = this.Env_SecondStage * this.OutGain; //apply output gain. In js, the last assignment is the function return value
+  );
+  
+  //AudioMeter object calculates various level envelopes for display, but does not actually draw the on-screen meter
+  function AudioMeter_Init(a_SampRate)
+  local (l_TCSamps)
+  (
+    this.SR = a_SampRate;
+    //reaches 99 percent RMS (about 98 percent squared values) in about 3.9 TC
+    //approx VU meter ballistics of 300 ms, but the 99 percent is after square root
+    //without the square root, would be about 5 time constants, or 0.06 seconds
+    l_TCSamps = 0.06766 * this.SR; 
+    this.ARCoff_VU = 1.0 / (2.0 * l_TCSamps); //approx VU meter 300 ms ballistics
+    this.ARCoff_VU /= (1 + this.ARCoff_VU);
+    l_TCSamps /= 3.0; //try about 100 ms for fast RMS display
+    this.ARCoff_Fast = 1.0 / (2.0 * l_TCSamps);
+    this.ARCoff_Fast /= (1 + this.ARCoff_Fast);
+    l_TCSamps *= 99.0; //try 33 X the VU TC, about 10000 ms to 99 percent
+    this.ARCoff_Slow = 1.0 / (2.0 * l_TCSamps);
+    this.ARCoff_Slow /= (1 + this.ARCoff_Slow);
+    l_TCSamps = 0.100 * this.SR * 8.659; //meter peak decays 1 dB per 100 ms, smoothing screen updates at 60 times per second
+    this.RCoff_Peak = 1.0 / (2.0 * l_TCSamps);
+    this.RCoff_Peak /= (1 + this.RCoff_Peak);
+    
+    this.Env_Peak_L = 0; //Peak envelope values
+    this.Env_Peak_R = 0;
+    this.Max_Peak_L = 0; //Max peaks since last reset
+    this.Max_Peak_R = 0;
+    
+    this.Env_VU_L = 0; //VU envelope values
+    this.Env_VU_R = 0;
+    this.Max_VU_L = 0; //Max VU since last reset
+    this.Max_VU_R = 0;
+  
+    this.Env_Fast_L = 0; //Fast RMS envelope values
+    this.Env_Fast_R = 0;
+    this.Env_Slow_L = 0; //Slow, long-term envelope values
+    this.Env_Slow_R = 0;
+  
+    this.S_Peak_L = 0; //filter state variables
+    this.S_Peak_R = 0;
+    this.S_Fast_L = 0;
+    this.S_Fast_R = 0;
+    this.S_VU_L = 0;
+    this.S_VU_R = 0;
+    this.S_Slow_L = 0;
+    this.S_Slow_R = 0;
+  );
+  
+  function AudioMeter_Reset()
+  (
+    this.Env_Peak_L = 0;
+    this.Env_Peak_R = 0;
+    this.Max_Peak_L = 0;
+    this.Max_Peak_R = 0;
+    
+    this.Env_Fast_L = 0;
+    this.Env_Fast_R = 0;
+
+    this.Env_VU_L = 0;
+    this.Env_VU_R = 0;
+    this.Max_VU_L = 0;
+    this.Max_VU_R = 0;
+
+    this.Env_Fast_L = 0;
+    this.Env_Fast_R = 0;
+    this.Env_Slow_L = 0;
+    this.Env_Slow_R = 0;
+  
+    this.S_Peak_L = 0;
+    this.S_Peak_R = 0;
+    this.S_Fast_L = 0;
+    this.S_Fast_R = 0;
+    this.S_VU_L = 0;
+    this.S_VU_R = 0;
+    this.S_Slow_L = 0;
+    this.S_Slow_R = 0;
+  );
+        
+  function AudioMeter_DoSamp(a_In_L, a_In_R)
+  local (l_PeakL, l_PeakR, l_SqrL, l_SqrR, l_v)
+  (
+    l_PeakL = abs(a_In_L); //find input peak for metering
+    l_PeakR = abs(a_In_R);
+    this.Max_Peak_L = max(this.Max_Peak_L, l_PeakL); //remember max peak
+    this.Max_Peak_R = max(this.Max_Peak_R, l_PeakR);
+
+    (this.S_Peak_L < l_PeakL) ? //instant attack, slower release
+    (
+      this.S_Peak_L = l_PeakL;
+      this.Env_Peak_L = l_PeakL;
+    )
+    :
+    (
+      l_v = (l_PeakL - this.S_Peak_L) * this.RCoff_Peak;
+      this.Env_Peak_L = l_v + this.S_Peak_L;
+      this.S_Peak_L = this.Env_Peak_L + l_v;
+    );
+  
+    (this.S_Peak_R < l_PeakR) ?
+    (
+      this.S_Peak_R = l_PeakR;
+      this.Env_Peak_R = l_PeakR;
+    )
+    :
+    (
+      l_v = (l_PeakR - this.S_Peak_R) * this.RCoff_Peak;
+      this.Env_Peak_R = l_v + this.S_Peak_R;
+      this.S_Peak_R = this.Env_Peak_R + l_v;
+    );
+    
+    l_SqrL = a_In_L * a_In_L;
+    l_SqrR = a_In_R * a_In_R;
+    
+    (this.S_Fast_L < l_SqrL) ? //instant attack, slower release on the fast RMS
+    (
+      this.S_Fast_L = l_SqrL;
+      this.Env_Fast_L = l_SqrL;
+    )
+    :
+    (
+      l_v = (l_SqrL - this.S_Fast_L) * this.ARCoff_Fast;
+      this.Env_Fast_L = l_v + this.S_Fast_L;
+      this.S_Fast_L = this.Env_Fast_L + l_v;
+    );
+    
+    l_v = (l_SqrL - this.S_VU_L) * this.ARCoff_VU;
+    this.Env_VU_L = l_v + this.S_VU_L;
+    this.S_VU_L = this.Env_VU_L + l_v;
+    this.Max_VU_L = max(this.Max_VU_L, this.Env_VU_L); //remember max VU
+  
+    l_v = (this.Env_VU_L - this.S_Slow_L) * this.ARCoff_Slow;
+    this.Env_Slow_L = l_v + this.S_Slow_L;
+    this.S_Slow_L = this.Env_Slow_L + l_v;
+
+    (this.S_Fast_R < l_SqrR) ?
+    (
+      this.S_Fast_R = l_SqrR;
+      this.Env_Fast_R = l_SqrR;    
+    )
+    :
+    (
+      l_v = (l_SqrR - this.S_Fast_R) * this.ARCoff_Fast;
+      this.Env_Fast_R = l_v + this.S_Fast_R;
+      this.S_Fast_R = this.Env_Fast_R + l_v;
+    );
+    
+    l_v = (l_SqrR - this.S_VU_R) * this.ARCoff_VU; //symmetrical attack and release
+    this.Env_VU_R = l_v + this.S_VU_R;
+    this.S_VU_R = this.Env_VU_R + l_v;
+    this.Max_VU_R = max(this.Max_VU_R, this.Env_VU_R);
+  
+    l_v = (this.Env_VU_R - this.S_Slow_R) * this.ARCoff_Slow; //symmetrical attack and release
+    this.Env_Slow_R = l_v + this.S_Slow_R;
+    this.S_Slow_R = this.Env_Slow_R + l_v;
+  );
+
+  function AudioMeter_GetPeakMono()
+  (
+    max(this.Env_Peak_L, this.Env_Peak_R);
+  );
+  
+  function AudioMeter_GetMaxPeakMono()
+  (
+    max(this.Max_Peak_L, this.Max_Peak_R);
+  );
+  
+  function AudioMeter_GetVUMono()
+  (
+    max(this.Env_VU_L, this.Env_VU_R);
+  );
+  
+  function AudioMeter_GetMaxVUMono()
+  (
+    max(this.Max_VU_L, this.Max_VU_R);
+  );
+  
+  function AudioMeter_GetFastMono()
+  (
+    max(this.Env_Fast_L, this.Env_Fast_R);
+  );
+
+  function AudioMeter_GetSlowMono()
+  (
+    max(this.Env_Slow_L, this.Env_Slow_R);
+  );
+
+  //globals
+  g_BGPicLoaded = 0; //flags to know if pics loaded
+  g_FGPicLoaded = 0;
+  g_PKPicLoaded = 0;
+  g_SLOPicLoaded = 0;
+  
+  STEREO_LINK_MODE_SUM = 0;
+  STEREO_LINK_MODE_MAX = 1;
+  g_StereoLinkMode = STEREO_LINK_MODE_MAX; //default
+  g_LookaheadPercent = 100; //default
+  g_LookaheadMs = 0;
+  g_PrimaryAtkRelMs = 10; //default
+  g_SideChainHiPassFreq = 10; //default
+  g_SecondaryReleaseMS = 20; //default
+  g_CompRatio = 1.5; //default
+  g_InvCompRatioMinusOne = 0;
+  g_ThreshDB = 1.5; //default
+  g_ThreshLog2 = 0;
+  g_MinThreshLinear = 0;
+  g_KneeWidthDB = 3; //default
+  g_KneeWidthLog2 = 0;
+  g_HalfInvKneeWidthLog2 = 0;
+  g_LoKneeThreshLog2 = 0;
+  g_HiKneeThreshLog2 = 0;
+  g_MakeupGainDB = 0; //default
+  g_MakeupGainLog2 = 0;
+  g_MakeupGainLinear = 0;
+  g_WetDryPercent = 100;
+  g_WetCoff = 1.0;
+  g_DryCoff = 0.0;
+  g_MaxSongGain = 0;
+  g_MinSongGain = 20;
+  
+  pdc_bot_ch = 0;
+  pdc_top_ch = 2;
+  
+  //Lookahead delay objects
+  o_LookAhead_L.SimpleDelay_Init(0.01, 0.102, srate);
+  o_LookAhead_R.SimpleDelay_Init(0.01, 0.102, srate);
+  
+  //Allpass filters for "low frequency hilbert" bass ripple reduction
+  o_APFilt_0_L.FirstOrdTrapezoidFilter_Init(FIRST_ORD_FILTTYPE_ALLPASS_ADV, 8.336807, srate);
+  o_APFilt_1_L.FirstOrdTrapezoidFilter_Init(FIRST_ORD_FILTTYPE_ALLPASS_RET, 75.031263, srate);
+  o_APFilt_2_L.FirstOrdTrapezoidFilter_Init(FIRST_ORD_FILTTYPE_ALLPASS_ADV, 30.195915, srate);
+  o_APFilt_3_L.FirstOrdTrapezoidFilter_Init(FIRST_ORD_FILTTYPE_ALLPASS_RET, 271.763235, srate);  
+  o_APFilt_0_R.FirstOrdTrapezoidFilter_Init(FIRST_ORD_FILTTYPE_ALLPASS_ADV, 8.336807, srate);
+  o_APFilt_1_R.FirstOrdTrapezoidFilter_Init(FIRST_ORD_FILTTYPE_ALLPASS_RET, 75.031263, srate);
+  o_APFilt_2_R.FirstOrdTrapezoidFilter_Init(FIRST_ORD_FILTTYPE_ALLPASS_ADV, 30.195915, srate);
+  o_APFilt_3_R.FirstOrdTrapezoidFilter_Init(FIRST_ORD_FILTTYPE_ALLPASS_RET, 271.763235, srate);
+
+  //Side chaing highpass filters
+  o_SC_HPFilt_L.FirstOrdTrapezoidFilter_Init(FIRST_ORD_FILTTYPE_HIPASS, 10.0, srate);
+  o_SC_HPFilt_R.FirstOrdTrapezoidFilter_Init(FIRST_ORD_FILTTYPE_HIPASS, 10.0, srate);
+  
+  //Running Sum FIR filters
+  o_RunSum_0.RunningSum_Init(0.002974, 0.016, srate); //init with 10 ms Atk/Rel
+  o_RunSum_1.RunningSum_Init(0.003417, 0.019, srate); 
+  o_RunSum_2.RunningSum_Init(0.003924, 0.021, srate); 
+  o_RunSum_3.RunningSum_Init(0.004508, 0.024, srate);
+  o_RunSum_4.RunningSum_Init(0.005178, 0.027, srate);
+  
+  //Second Stage Release envelope
+  o_SecondRelEnv.AREnvelope_Init(AR_ENV_POLARITY_POSITIVE, 0.001, AR_ENV_ATK_TC_SCALE_NONE, 0.020, AR_ENV_REL_TC_SCALE_MINUS_6_DB, AR_ENV_TC_TYPE_SECS, 1.0, srate);
+
+  //GUI meter objects
+  o_InputMeter.AudioMeter_Init(srate);
+  o_OutputMeter.AudioMeter_Init(srate);
+  o_GainMeterEnv.AREnvelope_Init(AR_ENV_POLARITY_NEGATIVE, 0.000, AR_ENV_ATK_TC_SCALE_NONE, 0.2, AR_ENV_REL_TC_SCALE_MINUS_3_DB, AR_ENV_TC_TYPE_SECS, 1.0, srate);   
+  
+  //utility functions specific to the plugin
+  function ClearMaxes()
+  (
+    g_MaxSongGain = 0;
+    g_MinSongGain = 20;
+    o_InputMeter.AudioMeter_Reset();
+    o_OutputMeter.AudioMeter_Reset();
+  );
+  
+  function SetStereoLinkMode(a_StereoLinkMode, a_AlwaysSet)
+  (
+    a_StereoLinkMode = max(min(a_StereoLinkMode, 1), 0); //clamp input value
+    ((g_StereoLinkMode != a_StereoLinkMode) || (a_AlwaysSet != 0)) ?
+      g_StereoLinkMode = a_StereoLinkMode;
+  );
+    
+  //if a_AtkRelChanged != 0, then change the AtkRel followed by changing the lookahead
+  //otherwise, only the lookahead requires changing
+  function CalcAtkRelAndLookahead(a_AtkRelChanged)
+  local (l_LongestRSLen)
+  (
+    (a_AtkRelChanged != 0) ?
+    (
+      l_LongestRSLen = (g_PrimaryAtkRelMs * 0.001) / 1.931256;
+      o_RunSum_0.RunningSum_SetRunSumLen(l_LongestRSLen * 0.574349);
+      o_RunSum_1.RunningSum_SetRunSumLen(l_LongestRSLen * 0.659754);
+      o_RunSum_2.RunningSum_SetRunSumLen(l_LongestRSLen * 0.757858);
+      o_RunSum_3.RunningSum_SetRunSumLen(l_LongestRSLen * 0.870551);
+      o_RunSum_4.RunningSum_SetRunSumLen(l_LongestRSLen);
+    );
+    g_LookaheadMs = max(ceil(g_PrimaryAtkRelMs * (g_LookaheadPercent * 0.01)), 1);
+    o_LookAhead_L.SimpleDelay_SetDelayTime(g_LookaheadMs * 0.001);
+    o_LookAhead_R.SimpleDelay_SetDelayTime(g_LookaheadMs * 0.001);
+    pdc_delay = o_LookAhead_L.LenSmps;
+    ClearMaxes();
+  );
+  
+  function SetLookaheadPercent(a_LookaheadPercent, a_AlwaysSet)
+  (
+    a_LookaheadPercent = max(min(a_LookaheadPercent, 200), 1); //clamp input value
+    ((g_LookaheadPercent != a_LookaheadPercent) || (a_AlwaysSet != 0)) ?
+    (
+      g_LookaheadPercent = a_LookaheadPercent;
+      CalcAtkRelAndLookahead(0);
+    );
+  );
+  
+  function SetPrimaryAtkRelMs(a_PrimaryAtkRelMs, a_AlwaysSet)
+  (
+    a_PrimaryAtkRelMs = max(min(a_PrimaryAtkRelMs, 50), 10); //clamp input value
+    ((g_PrimaryAtkRelMs != a_PrimaryAtkRelMs) || (a_AlwaysSet != 0)) ?
+    (
+      g_PrimaryAtkRelMs = a_PrimaryAtkRelMs;
+      CalcAtkRelAndLookahead(1);
+    );
+  );
+  
+  function SetCompRatio(a_CompRatio, a_AlwaysSet)
+  (
+    a_CompRatio = max(min(a_CompRatio, 20), 1.1); //clamp input value
+    ((g_CompRatio != a_CompRatio) || (a_AlwaysSet != 0)) ?
+    (
+      g_CompRatio = a_CompRatio;
+      g_InvCompRatioMinusOne = (1.0 / g_CompRatio) - 1.0;
+      ClearMaxes();
+    );
+  );
+  
+  function SetSecondaryRelease(a_SecondaryReleaseMS, a_AlwaysSet)
+  (
+    a_SecondaryReleaseMS = max(min(a_SecondaryReleaseMS, 2000), 1); //clamp input value
+    ((g_SecondaryReleaseMS != a_SecondaryReleaseMS) || (a_AlwaysSet != 0)) ?
+    (
+      g_SecondaryReleaseMS = a_SecondaryReleaseMS;
+      o_SecondRelEnv.AREnvelope_SetRelease(g_SecondaryReleaseMS * 0.001);
+      ClearMaxes();
+    );
+  );
+
+  function SetSideChainHiPassFreq(a_SideChainHiPassFreq, a_AlwaysSet)
+  (
+    a_SideChainHiPassFreq = max(min(a_SideChainHiPassFreq, 1000), 10); //clamp input value
+    ((g_SideChainHiPassFreq != a_SideChainHiPassFreq) || (a_AlwaysSet != 0)) ?
+    (
+      g_SideChainHiPassFreq = a_SideChainHiPassFreq;
+      o_SC_HPFilt_L.FirstOrdTrapezoidFilter_SetFC(g_SideChainHiPassFreq);
+      o_SC_HPFilt_R.FirstOrdTrapezoidFilter_SetFC(g_SideChainHiPassFreq);
+      ClearMaxes();
+    );
+  );
+  
+  function CalcThreshes()
+  (
+    g_ThreshLog2 = DB_Power_To_Log2(g_ThreshDB);
+    (g_KneeWidthDB >= 0.5) ?
+    (
+      g_MinThreshLinear = DB_To_Power(g_ThreshDB - (g_KneeWidthDB * 0.5));
+      g_LoKneeThreshLog2 = DB_Power_To_Log2(g_ThreshDB - (g_KneeWidthDB * 0.5));
+      g_HiKneeThreshLog2 = DB_Power_To_Log2(g_ThreshDB + (g_KneeWidthDB * 0.5));
+      g_KneeWidthLog2 = DB_Power_To_Log2(g_KneeWidthDB);
+      g_HalfInvKneeWidthLog2 = 1.0 / (2.0 * g_KneeWidthLog2);
+    )
+    :
+    (
+      g_MinThreshLinear = DB_To_Power(g_ThreshDB);
+      g_LoKneeThreshLog2 = g_ThreshLog2;
+      g_HiKneeThreshLog2 = g_ThreshLog2;
+      g_KneeWidthLog2 = 0;
+      g_HalfInvKneeWidthLog2 = 0;
+    );
+  );
+  
+  function SetThreshDB(a_ThreshDB, a_AlwaysSet)
+  (
+    a_ThreshDB = max(min(a_ThreshDB, -1), -48); //clamp input value
+    ((g_ThreshDB != a_ThreshDB) || (a_AlwaysSet != 0)) ?
+    (
+      g_ThreshDB = a_ThreshDB;
+      CalcThreshes();
+      ClearMaxes();
+    );
+  );
+  
+  function SetKneeWidthDB(a_KneeWidthDB, a_AlwaysSet)
+  (
+    a_KneeWidthDB = max(min(a_KneeWidthDB, 24), 0); //clamp input value
+    ((g_KneeWidthDB != a_KneeWidthDB) || (a_AlwaysSet != 0)) ?
+    (
+      g_KneeWidthDB = a_KneeWidthDB;
+      CalcThreshes();
+      ClearMaxes();
+    );
+  );
+
+  function SetMakeupGainDB(a_MakeupGainDB, a_AlwaysSet)
+  (
+    a_MakeupGainDB = max(min(a_MakeupGainDB, 24), 0); //clamp input value
+    ((g_MakeupGainDB != a_MakeupGainDB) || (a_AlwaysSet != 0)) ?
+    (
+      g_MakeupGainDB = a_MakeupGainDB;
+      g_MakeupGainLog2 = DB_Power_To_Log2(g_MakeupGainDB);
+      g_MakeupGainLinear = DB_To_Amplitude(g_MakeupGainDB);
+      ClearMaxes();
+    );
+  );
+
+  function SetWetDryPercent(a_WetDryPercent, a_AlwaysSet)
+  (
+    a_WetDryPercent = max(min(a_WetDryPercent, 100), 0); //clamp input value
+    ((g_WetDryPercent != a_WetDryPercent) || (a_AlwaysSet != 0)) ?
+    (
+      g_WetDryPercent = a_WetDryPercent;
+      g_WetCoff = g_WetDryPercent * 0.01;
+      g_DryCoff = 1.0 - g_WetCoff;
+      ClearMaxes();
+    );
+  );
+  
+  //at end of init, finally sync the initial state to the slider values 
+  SetStereoLinkMode(slider1, 1);  
+  SetLookaheadPercent(slider2, 1);
+  SetPrimaryAtkRelMs(slider3, 1);
+  SetSecondaryRelease(slider4, 1);
+  SetSideChainHiPassFreq(slider5, 1);
+  SetCompRatio(slider6, 1);
+  SetThreshDB(slider7, 1);
+  SetKneeWidthDB(slider8, 1);
+  SetMakeupGainDB(slider9, 1);
+  SetWetDryPercent(slider10, 1);
+
+@slider
+  //update internal state if any sliders change
+  (slider1 != g_StereoLinkMode) ?
+    SetStereoLinkMode(slider1, 0);
+  (slider2 != g_LookaheadPercent) ?
+    SetLookaheadPercent(slider2, 0);
+  (slider3 != g_PrimaryAtkRelMs) ?
+    SetPrimaryAtkRelMs(slider3, 0);
+  (slider4 != g_SecondaryReleaseMS) ?
+    SetSecondaryRelease(slider4, 0);
+  (slider5 != g_SideChainHiPassFreq) ?
+    SetSideChainHiPassFreq(slider5, 1);
+  (slider6 != g_CompRatio) ?
+    SetCompRatio(slider6, 0);
+  (slider7 != g_ThreshDB) ?  
+    SetThreshDB(slider7, 0);
+  (slider8 != g_KneeWidthDB) ?
+    SetKneeWidthDB(slider8, 0);
+  (slider9 != g_MakeupGainDB) ?
+    SetMakeupGainDB(slider9, 0);
+  (slider10 != g_WetDryPercent) ?
+    SetWetDryPercent(slider10, 0);
+
+@block
+  ((play_state == 1) || (play_state == 5)) ?
+  (
+    lb_SplBlk = samplesblock; //num samples to process for this buffer
+    //recalc the running sums approximately once per second to avoid cumulative rounding errors
+    o_RunSum_0.RunningSum_PossiblyRecalcRunSum(lb_SplBlk);
+    o_RunSum_1.RunningSum_PossiblyRecalcRunSum(lb_SplBlk);
+    o_RunSum_2.RunningSum_PossiblyRecalcRunSum(lb_SplBlk);
+    o_RunSum_3.RunningSum_PossiblyRecalcRunSum(lb_SplBlk);
+    o_RunSum_4.RunningSum_PossiblyRecalcRunSum(lb_SplBlk);
+  );
+
+@sample
+  //Apply Side Chain highpass
+  ls_SC_SampL = o_SC_HPFilt_L.FirstOrdTrapezoidFilter_DoSamp(spl0);
+  ls_SC_SampR = o_SC_HPFilt_R.FirstOrdTrapezoidFilter_DoSamp(spl1);
+  
+  //Allpass filter chains to apply "low frequency hilbert"
+  //  Which helps minimize low-frequency ripple
+  //With the cascaded running sum smoothing, higher frequency ripple naturally well-smoothed
+  //  without any "hilbert phase shifting"
+  //A "wide band" Hilbert would need more allpass filters
+  //  and also introduce more time-delay in the envelopes
+  //So the bass is the only area of concern
+  ls_AP0_L = o_APFilt_0_L.FirstOrdTrapezoidFilter_DoSamp(ls_SC_SampL);
+  ls_AP0_L = o_APFilt_1_L.FirstOrdTrapezoidFilter_DoSamp(ls_AP0_L);
+  ls_AP1_L = o_APFilt_2_L.FirstOrdTrapezoidFilter_DoSamp(ls_SC_SampL);
+  ls_AP1_L = o_APFilt_3_L.FirstOrdTrapezoidFilter_DoSamp(ls_AP1_L);
+  //Square and add the two left channel allpass chains
+  ls_HSS_L = ls_AP0_L * ls_AP0_L + ls_AP1_L * ls_AP1_L;
+  
+  ls_AP0_R = o_APFilt_0_R.FirstOrdTrapezoidFilter_DoSamp(ls_SC_SampR);
+  ls_AP0_R = o_APFilt_1_R.FirstOrdTrapezoidFilter_DoSamp(ls_AP0_R);
+  ls_AP1_R = o_APFilt_2_R.FirstOrdTrapezoidFilter_DoSamp(ls_SC_SampR);
+  ls_AP1_R = o_APFilt_3_R.FirstOrdTrapezoidFilter_DoSamp(ls_AP1_R);
+  ////Square and add the two right channel allpass chains
+  ls_HSS_R = ls_AP0_R * ls_AP0_R + ls_AP1_R * ls_AP1_R;
+
+  (g_StereoLinkMode == STEREO_LINK_MODE_SUM) ?
+    ls_EnvVal = 0.25 * (ls_HSS_L + ls_HSS_R)
+  : //otherwise g_StereoLinkMode == STEREO_LINK_MODE_MAX
+    ls_EnvVal = 0.5 * max(ls_HSS_L, ls_HSS_R);
+      
+  //Five cascaded running sums with progressively longer sum lengths.
+  //This results in a rather low-ripple gaussian FIR filtered envelope.
+  ls_EnvVal = o_RunSum_0.RunningSum_DoSamp(ls_EnvVal);
+  ls_EnvVal = o_RunSum_1.RunningSum_DoSamp(ls_EnvVal);
+  ls_EnvVal = o_RunSum_2.RunningSum_DoSamp(ls_EnvVal);
+  ls_EnvVal = o_RunSum_3.RunningSum_DoSamp(ls_EnvVal);
+  ls_EnvVal = o_RunSum_4.RunningSum_DoSamp(ls_EnvVal);
+  ls_EnvVal = o_SecondRelEnv.AREnvelope_DoSamp(ls_EnvVal);
+
+  //Gain calculation based on the smoothed envelope
+  (ls_EnvVal <= g_MinThreshLinear) ? 
+    //if the envelope is below threshold, don't bother with the log/exp math
+    ls_GainLinear = g_MakeupGainLinear
+  :
+  (
+    ls_EnvValLog2 = Log_2_Fast(ls_EnvVal);
+    (ls_EnvValLog2 >= g_HiKneeThreshLog2) ? //if g_KneeWidthDB == 0 then g_ThreshLog2 == g_HiKneeThreshLog2
+    (
+      ls_OverThreshLog2 = ls_EnvValLog2 - g_ThreshLog2;
+      ls_GainLog2 = (g_InvCompRatioMinusOne * ls_OverThreshLog2) + g_MakeupGainLog2;
+    )
+    :
+    (
+      ls_OverThreshLog2 = ls_EnvValLog2 - g_LoKneeThreshLog2;
+      ls_GainLog2 = (g_InvCompRatioMinusOne * g_HalfInvKneeWidthLog2 * ls_OverThreshLog2 * ls_OverThreshLog2) + g_MakeupGainLog2;
+    );
+    //halve the power log gain so that exp() yields linear amplitude gain
+    ls_GainLinear = Exp_2_Fast(ls_GainLog2 * 0.5);
+  );
+  
+  //maintain min and max gains for display on the GUI meters
+  g_MaxSongGain = max(g_MaxSongGain, ls_GainLinear);
+  g_MinSongGain = min(g_MinSongGain, ls_GainLinear);
+  
+  //send the current gain to the GainMeterEnvelope object
+  o_GainMeterEnv.AREnvelope_DoSamp(ls_GainLinear);
+  
+  //For lookahead, store the current sample and recover the delayed sample.
+  ls_DlySampL = o_LookAhead_L.SimpleDelay_DoSamp(spl0);
+  ls_DlySampR = o_LookAhead_R.SimpleDelay_DoSamp(spl1);
+
+  //send the delayed input samples to the InputMeter object
+  o_InputMeter.AudioMeter_DoSamp(ls_DlySampL, ls_DlySampR);
+
+  //apply gain and mix wet/dry
+  ls_DlySampL = (ls_DlySampL * ls_GainLinear * g_WetCoff) + (ls_DlySampL * g_DryCoff);
+  ls_DlySampR = (ls_DlySampR * ls_GainLinear * g_WetCoff) + (ls_DlySampR * g_DryCoff);
+  
+  //send the mix of wet and dry output to the OutputMeter object
+  o_OutputMeter.AudioMeter_DoSamp(ls_DlySampL, ls_DlySampR);
+  
+  //assign modified samples to the output
+  spl0 = ls_DlySampL;
+  spl1 = ls_DlySampR;
+
+@gfx 664, 228
+  lg_DoTheGFX = 1; //if images don't load, don't do the GFX
+  ((g_BGPicLoaded < 1) && (lg_DoTheGFX >= 1)) ? //load background meter picture if needed
+  (
+    (g_BGPicLoaded > -1) ?
+    (
+      lg_LoadResult = gfx_loadimg(0, 0);
+      (lg_LoadResult >= 0) ?
+        g_BGPicLoaded = 1
+      :
+      (
+        g_BGPicLoaded = -1;
+        lg_DoTheGFX = 0;
+      );
+    )
+    :
+      lg_DoTheGFX = 0;  
+  );
+
+  ((g_FGPicLoaded < 1) && (lg_DoTheGFX >= 1)) ? //load meter indicator forground picture if needed
+  (
+    (g_FGPicLoaded > -1) ?
+    (
+      lg_LoadResult = gfx_loadimg(1, 1);
+      (lg_LoadResult >= 0) ?
+        g_FGPicLoaded = 1
+      :
+      (
+        g_FGPicLoaded = -1;
+        lg_DoTheGFX = 0;
+      );
+    )
+    :
+      lg_DoTheGFX = 0;  
+  );
+
+  ((g_PKPicLoaded < 1) && (lg_DoTheGFX >= 1)) ? //load peak indicator picture if needed
+  (
+    (g_PKPicLoaded > -1) ?
+    (
+      lg_LoadResult = gfx_loadimg(2, 2);
+      (lg_LoadResult >= 0) ?
+        g_PKPicLoaded = 1
+      :
+      (
+        g_PKPicLoaded = -1;
+        lg_DoTheGFX = 0;
+      );
+    )
+    :
+      lg_DoTheGFX = 0;  
+  );
+  
+  ((g_SLOPicLoaded < 1) && (lg_DoTheGFX >= 1)) ? //load peak indicator picture if needed
+  (
+    (g_SLOPicLoaded > -1) ?
+    (
+      lg_LoadResult = gfx_loadimg(3, 3);
+      (lg_LoadResult >= 0) ?
+        g_SLOPicLoaded = 1
+      :
+      (
+        g_SLOPicLoaded = -1;
+        lg_DoTheGFX = 0;
+      );
+    )
+    :
+      lg_DoTheGFX = 0;  
+  );
+    
+  (lg_DoTheGFX > 0) ? //only do graphics if pics are loaded
+  (
+    //gfx_blit(source image, scale, rotation, srcx, srcy, srcw, srch, destx, desty, destw, desth, rotxoffs, rotyoffs)
+    gfx_dest = 0; //set drawing dest to the background meter picture
+    gfx_blit(1, 1.0, 0.0, 0, 0, 535, 26, 93, 50, 535, 26, 0, 0); //offscreen blit INPUT meter background, as if all LED's are turned off
+    gfx_blit(1, 1.0, 0.0, 0, 0, 535, 26, 93, 112, 535, 26, 0, 0); //offscreen blit OUTPUT meter background
+    gfx_blit(1, 1.0, 0.0, 0, 26, 535, 26, 93, 174, 535, 26, 0, 0); //offscreen blit GAIN meter background    
+
+    lg_DB = Power_To_DB(o_InputMeter.AudioMeter_GetFastMono());
+    (lg_DB >= -61) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = floor(lg_DB * 525 / 67);
+      gfx_blit(1, 1.0, 0.0, 0, 104, lg_HPix, 26, 93, 50, lg_HPix, 26, 0, 0); //offscreen blit INPUT meter VU rms level
+    );
+
+    lg_DB = Power_To_DB(o_InputMeter.AudioMeter_GetVUMono());
+    (lg_DB >= -61) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = floor(lg_DB * 525 / 67);
+      gfx_blit(1, 1.0, 0.0, 0, 52, lg_HPix, 26, 93, 50, lg_HPix, 26, 0, 0); //offscreen blit INPUT meter VU rms level
+      gfx_r = 0.0;
+      gfx_g = 0.5;
+      gfx_b = 0.0;
+      gfx_line(92 + lg_HPix, 50, 93 + lg_HPix, 75);
+      gfx_line(93 + lg_HPix, 50, 93 + lg_HPix, 75);
+      gfx_line(94 + lg_HPix, 50, 94 + lg_HPix, 75);
+    );  
+
+    lg_DB = Power_To_DB(o_InputMeter.AudioMeter_GetSlowMono());
+    (lg_DB >= -60) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = 93 + floor(lg_DB * 525 / 67) - 6; //subtract width of peak image
+      gfx_blit(3, 1.0, 0.0, 0, 0, 6, 26, lg_HPix, 50, 6, 26, 0, 0); //offscreen blit INPUT meter Peak indicator
+    );
+        
+    lg_DB = Amplitude_To_DB(o_InputMeter.AudioMeter_GetPeakMono());
+    (lg_DB >= -60) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = 93 + floor(lg_DB * 525 / 67) - 6; //subtract width of peak image
+      gfx_blit(2, 1.0, 0.0, 0, 0, 6, 26, lg_HPix, 50, 6, 26, 0, 0); //offscreen blit INPUT meter Peak indicator
+    );
+        
+    lg_DB = Power_To_DB(o_InputMeter.AudioMeter_GetMaxVUMono());
+    (lg_DB >= -60) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = 93 + floor(lg_DB * 525 / 67);
+      (lg_HPix > 625) ?
+        lg_HPix = 625;
+      gfx_r = 0.5;
+      gfx_g = 1.0;
+      gfx_b = 0.5;
+      gfx_line(lg_HPix, 50, lg_HPix, 75);
+      gfx_r = 0.0;
+      gfx_g = 0.5;
+      gfx_b = 0.0;
+      gfx_line(lg_HPix - 1, 50, lg_HPix - 1, 75);
+      gfx_line(lg_HPix + 1, 50, lg_HPix + 1, 75);
+      gfx_r = 0.0;
+      gfx_g = 0.25;
+      gfx_b = 0.0;
+      gfx_line(lg_HPix - 2, 50, lg_HPix - 2, 75);
+      gfx_line(lg_HPix + 2, 50, lg_HPix + 2, 75);
+    );
+
+    lg_DB = Amplitude_To_DB(o_InputMeter.AudioMeter_GetMaxPeakMono());
+    (lg_DB >= -60) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = 93 + floor(lg_DB * 525 / 67);
+      (lg_HPix > 625) ?
+        lg_HPix = 625;
+      gfx_r = 1.0;
+      gfx_g = 0.75;
+      gfx_b = 0.0;
+      gfx_line(lg_HPix, 50, lg_HPix, 75);
+      gfx_r = 0.7;
+      gfx_g = 0.0;
+      gfx_b = 0.0;
+      gfx_line(lg_HPix - 1, 50, lg_HPix - 1, 75);
+      gfx_line(lg_HPix + 1, 50, lg_HPix + 1, 75);
+      gfx_r = 0.25;
+      gfx_g = 0.0;
+      gfx_b = 0.0;
+      gfx_line(lg_HPix - 2, 50, lg_HPix - 2, 75);
+      gfx_line(lg_HPix + 2, 50, lg_HPix + 2, 75);
+    );
+    
+    lg_DB = Power_To_DB(o_OutputMeter.AudioMeter_GetFastMono());
+    (lg_DB >= -61) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = floor(lg_DB * 525 / 67);
+      gfx_blit(1, 1.0, 0.0, 0, 104, lg_HPix, 26, 93, 112, lg_HPix, 26, 0, 0); //offscreen blit INPUT meter VU rms level
+    );
+    
+    lg_DB = Power_To_DB(o_OutputMeter.AudioMeter_GetVUMono());
+    (lg_DB >= -61) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = floor(lg_DB * 525 / 67);
+      gfx_blit(1, 1.0, 0.0, 0, 52, lg_HPix, 26, 93, 112, lg_HPix, 26, 0, 0); //offscreen blit OUTPUT meter VU rms level
+      gfx_r = 0.0;
+      gfx_g = 0.5;
+      gfx_b = 0.0;
+      gfx_line(92 + lg_HPix, 112, 93 + lg_HPix, 137);
+      gfx_line(93 + lg_HPix, 112, 93 + lg_HPix, 137);
+      gfx_line(94 + lg_HPix, 112, 94 + lg_HPix, 137);
+    );
+    
+    lg_DB = Power_To_DB(o_OutputMeter.AudioMeter_GetSlowMono());
+    (lg_DB >= -60) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = 93 + floor(lg_DB * 525 / 67) - 6; //subtract width of peak image
+      gfx_blit(3, 1.0, 0.0, 0, 0, 6, 26, lg_HPix, 112, 6, 26, 0, 0); //offscreen blit OUTPUT meter Peak indicator
+    );
+    
+    lg_DB = Amplitude_To_DB(o_OutputMeter.AudioMeter_GetPeakMono());
+    (lg_DB >= -60) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = 93 + floor(lg_DB * 525 / 67) - 6; //subtract width of peak image
+      gfx_blit(2, 1.0, 0.0, 0, 0, 6, 26, lg_HPix, 112, 6, 26, 0, 0); //offscreen blit OUTPUT meter Peak indicator
+    );  
+    
+    lg_DB = Power_To_DB(o_OutputMeter.AudioMeter_GetMaxVUMono());
+    (lg_DB >= -60) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = 93 + floor(lg_DB * 525 / 67);
+      (lg_HPix > 625) ?
+        lg_HPix = 625;
+      gfx_r = 0.5;
+      gfx_g = 1.0;
+      gfx_b = 0.5;
+      gfx_line(lg_HPix, 112, lg_HPix, 137);
+      gfx_r = 0.0;
+      gfx_g = 0.5;
+      gfx_b = 0.0;
+      gfx_line(lg_HPix - 1, 112, lg_HPix - 1, 137);
+      gfx_line(lg_HPix + 1, 112, lg_HPix + 1, 137);
+      gfx_r = 0.0;
+      gfx_g = 0.25;
+      gfx_b = 0.0;
+      gfx_line(lg_HPix - 2, 112, lg_HPix - 2, 137);
+      gfx_line(lg_HPix + 2, 112, lg_HPix + 2, 137);
+    );
+
+    lg_DB = Amplitude_To_DB(o_OutputMeter.AudioMeter_GetMaxPeakMono());
+    (lg_DB >= -60) ?
+    (
+      (lg_DB > 6) ?
+        lg_DB = 6;
+      lg_DB += 62;
+      lg_HPix = 93 + floor(lg_DB * 525 / 67);
+      (lg_HPix > 625) ?
+        lg_HPix = 625;
+      gfx_r = 1.0;
+      gfx_g = 0.75;
+      gfx_b = 0.0;
+      gfx_line(lg_HPix, 112, lg_HPix, 137);
+      gfx_r = 0.7;
+      gfx_g = 0.0;
+      gfx_b = 0.0;
+      gfx_line(lg_HPix - 1, 112, lg_HPix - 1, 137);
+      gfx_line(lg_HPix + 1, 112, lg_HPix + 1, 137);
+      gfx_r = 0.25;
+      gfx_g = 0.0;
+      gfx_b = 0.0;
+      gfx_line(lg_HPix - 2, 112, lg_HPix - 2, 137);
+      gfx_line(lg_HPix + 2, 112, lg_HPix + 2, 137);
+    );
+    
+    lg_DB = Amplitude_To_DB(o_GainMeterEnv.Env_Output);
+    (lg_DB > 0.01) ? //if gain > 0, draw gain from 0 dB upwards
+    (
+      (lg_DB > 24) ?
+        lg_DB = 24;
+        
+      lg_BK_HPixel_Start = 436.0;
+      lg_FG_HPixel_Start = 343.0;
+      (lg_DB <= 1.0) ? //linear plot
+      (
+        lg_BK_HPixel_End = floor(lg_DB * 24.0);
+        lg_FG_HPixel_End = lg_BK_HPixel_End + lg_FG_HPixel_Start;
+        lg_BK_HPixel_End += lg_BK_HPixel_Start;
+      )
+      :
+      (
+        lg_BK_HPixel_End = floor(24 * (lg_DB ^ 0.6544));
+        lg_FG_HPixel_End = lg_BK_HPixel_End + lg_FG_HPixel_Start;
+        lg_BK_HPixel_End += lg_BK_HPixel_Start;
+      );
+
+      (lg_BK_HPixel_End > lg_BK_HPixel_Start) ?      
+        gfx_blit(1, 1.0, 0.0, lg_FG_HPixel_Start, 78, lg_FG_HPixel_End - lg_FG_HPixel_Start, 26, lg_BK_HPixel_Start, 174, 
+                lg_BK_HPixel_End - lg_BK_HPixel_Start, 26, 0, 0); //offscreen blit GAIN meter FG  
+    )
+    :
+    (
+      (lg_DB < -0.01) ? //if gain < 0, draw gain from 0 dB downwards
+      (
+        (lg_DB < -48) ?
+          lg_DB = -48;
+
+        lg_BK_HPixel_End = 436.0;
+        lg_FG_HPixel_End = 343.0;
+        lg_DB = 0 - lg_DB; //negate
+        (lg_DB <= 1.0) ? //linear plot
+        (
+          lg_BK_HPixel_Start = floor(lg_DB * 24.0);
+          lg_FG_HPixel_Start = lg_FG_HPixel_End - lg_BK_HPixel_Start;
+          lg_BK_HPixel_Start = lg_BK_HPixel_End - lg_BK_HPixel_Start;
+        )
+        :
+        (
+          lg_BK_HPixel_Start = floor(24 * (lg_DB ^ 0.687793742));
+          lg_FG_HPixel_Start = lg_FG_HPixel_End - lg_BK_HPixel_Start;
+          lg_BK_HPixel_Start = lg_BK_HPixel_End - lg_BK_HPixel_Start;
+        );
+        (lg_BK_HPixel_End > lg_BK_HPixel_Start) ?      
+          gfx_blit(1, 1.0, 0.0, lg_FG_HPixel_Start, 78, lg_FG_HPixel_End - lg_FG_HPixel_Start, 26, lg_BK_HPixel_Start, 174, 
+                  lg_BK_HPixel_End - lg_BK_HPixel_Start, 26, 0, 0); //offscreen blit GAIN meter FG  
+      )
+    );
+  
+    lg_DB = Amplitude_To_DB(g_MaxSongGain);
+    ((lg_DB >= -46) && (lg_DB <= 24)) ?
+    (
+      (lg_DB >= 0) ? //if gain > 0, draw gain from 0 dB upwards
+      (
+        (lg_DB <= 1.0) ? //linear plot
+          lg_HPix = floor((lg_DB * 24) + 436)
+        :
+          lg_HPix = floor((24 * (lg_DB ^ 0.6544)) + 436);      
+      )
+      :
+      (
+        lg_DB = 0 - lg_DB; //negate
+        (lg_DB <= 1.0) ? //linear plot
+          lg_HPix = floor(436 - (lg_DB * 24))
+        :
+          lg_HPix = floor(436 - (24 * (lg_DB ^ 0.687793742)));
+      );
+        (lg_HPix > 625) ?
+          lg_HPix = 625;
+        gfx_r = 1.0;
+        gfx_g = 0.75;
+        gfx_b = 0.0;
+        gfx_line(lg_HPix, 174, lg_HPix, 199);
+        gfx_r = 0.7;
+        gfx_g = 0.0;
+        gfx_b = 0.0;
+        gfx_line(lg_HPix - 1, 174, lg_HPix - 1, 199);
+        gfx_line(lg_HPix + 1, 174, lg_HPix + 1, 199);
+        gfx_r = 0.25;
+        gfx_g = 0.0;
+        gfx_b = 0.0;
+        gfx_line(lg_HPix - 2, 174, lg_HPix - 2, 199);
+        gfx_line(lg_HPix + 2, 174, lg_HPix + 2, 199);
+      //);
+    );
+    
+    lg_DB = Amplitude_To_DB(g_MinSongGain);
+    ((lg_DB >= -46) && (lg_DB <= 24)) ?
+    (
+      (lg_DB >= 0) ? //if gain > 0, draw gain from 0 dB upwards
+      (
+        (lg_DB <= 1.0) ? //linear plot
+          lg_HPix = floor((lg_DB * 24) + 436)
+        :
+          lg_HPix = floor((24 * (lg_DB ^ 0.6544)) + 436);      
+      )
+      :
+      (
+        lg_DB = 0 - lg_DB; //negate
+        (lg_DB <= 1.0) ? //linear plot
+          lg_HPix = floor(436 - (lg_DB * 24))
+        :
+          lg_HPix = floor(436 - (24 * (lg_DB ^ 0.687793742)));
+      );
+        (lg_HPix > 625) ?
+          lg_HPix = 625;
+        gfx_r = 1.0;
+        gfx_g = 0.75;
+        gfx_b = 0.0;
+        gfx_line(lg_HPix, 174, lg_HPix, 199);
+        gfx_r = 0.7;
+        gfx_g = 0.0;
+        gfx_b = 0.0;
+        gfx_line(lg_HPix - 1, 174, lg_HPix - 1, 199);
+        gfx_line(lg_HPix + 1, 174, lg_HPix + 1, 199);
+        gfx_r = 0.25;
+        gfx_g = 0.0;
+        gfx_b = 0.0;
+        gfx_line(lg_HPix - 2, 174, lg_HPix - 2, 199);
+        gfx_line(lg_HPix + 2, 174, lg_HPix + 2, 199);
+      //);
+    );
+        
+    gfx_dest = -1; //set drawing target to the plugin window
+    gfx_blit(0, 1.0, 0.0, 0, 0, 664, 228, 0, 0, gfx_w, gfx_h, 0, 0); //blit the updated offscreen meter image   
+  );

@@ -1,0 +1,236 @@
+desc:Phase Alignement Tool
+
+import cookdsp.jsfx-inc
+
+slider1:phaseShift=0<-180,180,1>Phase shift (°)
+slider2:timeShift=0<0,2000,1> Time correction (smpl)
+slider3:roomTemp=15<0,40,0.1>Room temperature (°)
+slider4:phaseBypass=0<0,1,1>Phase alignement bypass (On/Off)
+slider5:timeBypass=0<0,1,1>Time alignement bypass (On/Off)
+slider6:group=0<0,16,1>Group
+
+options:gmem=phaseAlignTool
+
+//TODO
+//+Allow negative delay
+//+Make it multichannel
+//+Reduce CPU charge of hilbert transform
+//+Improve hilbert transform to be perfectly flat on signal audible band
+
+@init
+
+h0.hilbert();
+h1.hilbert();
+
+phaseDisplay = #phaseDisplay;
+timeDisplay = #timeDisplay;
+
+phaseLabelDisplay = #phaseLabelDisplay;
+timeLabelDisplay = #timeLabelDisplay;
+
+groupeDisplay = #groupeDisplay;
+
+#phaseLabelDisplay="Ph.";
+#timeLabelDisplay="Smpl";
+
+timeLabelStatus = 0;
+lastMouseCap = mouse_cap;
+lastMouseY = mouse_y;
+
+buffer=16000;
+bufferLength=4000;
+readPos=0;
+writePos=0;
+
+gmem[0] = -1;
+
+function onControl() (
+  group>0?(
+  gmem[group] = phaseBypass + timeBypass*2;
+  );
+);
+
+@slider
+
+sprintf(#phaseDisplay, "%d", phaseShift);
+sprintf(#timeDisplay, "%d", slider2);
+
+//0 = no bypass; 1 = phase bypass; 2 = time bypass; 3 = both bypass
+onControl();
+
+@block
+
+readPos=writePos-timeShift;
+readPos<0?readPos=readPos+bufferLength;
+
+gmem[group]==0?(phaseBypass=0;timeBypass=0;);
+gmem[group]==1?(phaseBypass=1;timeBypass=0;);
+gmem[group]==2?(phaseBypass=0;timeBypass=1;);
+gmem[group]==3?(phaseBypass=1;timeBypass=1;);
+
+@sample
+
+  phaseBypass==0?(
+    h0.hilbert_do(spl0);
+    h1.hilbert_do(spl1);
+    spl0 = cos(phaseShift*0.017453)*h0.real + sin(phaseShift*0.017453)*h0.imag;
+    spl1 = cos(phaseShift*0.017453)*h1.real + sin(phaseShift*0.017453)*h1.imag;
+  );
+
+  timeBypass==0?(
+      buffer[writePos]=spl0;
+      buffer[writePos+1]=spl1;
+      spl0=buffer[readPos];
+      spl1=buffer[readPos+1];
+  );
+  
+  writePos+=2;
+  writePos>2*bufferLength?writePos=0;
+  
+  readPos+=2;
+  readPos>2*bufferLength?readPos=0;
+  
+//  bpos+=2;
+//  bpos>=bufsize*2 ? bpos=0;
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@gfx 480 230
+stringW=stringH=0;
+
+//MOUSE HANDLING
+
+function onMouseDown()(
+  mouse_cap&1-lastMouseCap&1==1?1:0;
+);
+
+onMouseDown()==1?mouseX=mouse_x;
+
+lastMouseCap-mouse_cap==2 ? (timeLabelStatus>=2?timeLabelStatus=0:timeLabelStatus+=1);
+
+lastMouseCap-mouse_cap==9 && mouse_x < gfx_w*0.5?(
+  phaseBypass==0?phaseBypass=1:phaseBypass=0;
+);
+
+lastMouseCap-mouse_cap==9 && mouse_x > gfx_w*0.5?(
+  timeBypass==0?timeBypass=1:timeBypass=0;
+);
+
+mouse_cap==17 ? (
+  mouseX < gfx_w*0.5?(
+      phaseShift=0;
+      sprintf(#phaseDisplay, "%d", phaseShift);
+      ):(
+      timeShift=0;
+      sprintf(#timeDisplay, "%d", timeShift);
+      );
+);
+
+mouse_cap&1 ? (
+  mouseX < gfx_w*0.5?(
+    newValue=phaseShift;
+    newValue+=lastMouseY-mouse_y;
+    newValue<-180?newValue=-180;
+    newValue>180?newValue=180;
+    phaseShift=newValue;
+    sprintf(#phaseDisplay, "%d", phaseShift);
+    ):(
+    newValue=timeShift;
+    newValue+=lastMouseY-mouse_y;
+    newValue<0?newValue=0;
+    newValue>2000?newValue=2000;
+    timeShift=newValue;
+    sprintf(#timeDisplay, "%d", timeShift);
+    );
+    lastMouseY=mouse_y;
+);
+
+lastMouseCap = mouse_cap;
+lastMouseY = mouse_y;
+
+timeLabelStatus==0?(#timeDisplay=sprintf(#timeDisplay, "%d", timeShift);#timeLabelDisplay="Smpl");
+timeLabelStatus==1?(#timeDisplay=sprintf(#timeDisplay, "%.2f", 20.05*sqrt(273.15+roomTemp)*(timeShift/srate));#timeLabelDisplay="Dist (m)");
+timeLabelStatus==2?(#timeDisplay=sprintf(#timeDisplay, "%.2f", timeShift*1000/srate);#timeLabelDisplay="Time (ms)  ");
+
+sprintf(#groupDisplay, "Grp %d", group);
+
+//DRAW GROUP STRING
+
+gfx_set(1, 1, 1, 1);
+
+gfx_measurestr(#groupDisplay,stringW,stringH);
+
+yCenter = gfx_h-stringH;
+gfx_y = (yCenter*0.1)-1;
+xCenter = gfx_w-(stringW);
+gfx_x = xCenter*0.5;
+
+gfx_drawstr(#groupDisplay,1);
+
+
+//DRAW PHASE ALIGNEMENT STRINGS
+
+phaseBypass==0?(
+  gfx_set(1, 1, 1, 1);
+  ):(
+  gfx_set(0.75, 0.50, 0.25, 1);
+);
+gfx_measurestr(#phaseDisplay,stringW,stringH);
+
+yCenter = gfx_h-stringH;
+gfx_y = (yCenter*0.95)-1;
+xCenter = gfx_w-(stringW);
+gfx_x = 4;
+
+gfx_drawstr(#phaseDisplay,1);
+
+gfx_measurestr(#phaseLabelDisplay,stringW,stringH);
+
+yCenter = gfx_h-stringH;
+gfx_y = (yCenter*0.55)-1;
+xCenter = gfx_w-(stringW);
+gfx_x = 4;
+
+gfx_drawstr(#phaseLabelDisplay,1);
+
+///////////////////////////////////////////////
+
+//DRAW TIME ALIGNEMENT STRINGS
+
+timeBypass==0?(
+  gfx_set(1, 1, 1, 1);
+  ):(
+  gfx_set(0.75, 0.50, 0.25, 1);
+);
+
+gfx_measurestr(#timeDisplay,stringW,stringH);
+
+yCenter = gfx_h-stringH;
+gfx_y = (yCenter*0.95)-1;
+xCenter = gfx_w-(stringW);
+gfx_x = xCenter-4;
+
+gfx_drawstr(#timeDisplay,1);
+
+gfx_measurestr(#timeLabelDisplay,stringW,stringH);
+
+yCenter = gfx_h-stringH;
+gfx_y = (yCenter*0.55)-1;
+xCenter = gfx_w-(stringW);
+gfx_x = xCenter-4;
+
+gfx_drawstr(#timeLabelDisplay,1);

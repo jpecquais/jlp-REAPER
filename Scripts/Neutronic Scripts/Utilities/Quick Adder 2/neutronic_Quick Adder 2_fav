@@ -1,0 +1,9 @@
+FAV = {
+	[1] = "VST3i:Reason Rack Plugin (Reason Studios) (4->32ch)|,|Reason_Rack_Plugin.vst3|,|i|,|1900569630|,||,|fav",
+	[2] = "VST3:Reason Rack Plugin Effect (Reason Studios) (4->32ch)|,|Reason_Rack_Plugin.vst3|,||,|956563164|,||,|fav",
+	[3] = "VST3:MTurboReverb (MeldaProduction)	Favorite|,|MTurboReverb.vst3|,||,|1369102329{4D656C646170726F4D7452654D745265|,||,|fav",
+	[4] = "VST2:ReaComp (Cockos)|,|reacomp.dll|,||,|1919247213|,||,|fav",
+	[5] = "VST2:ReaEQ (Cockos)|,|reaeq.dll|,||,|1919247729|,||,|fav",
+	[6] = "VST3:MTurboComp (MeldaProduction)	Favorite|,|MTurboComp.vst3|,||,|1031186521{4D656C646170726F4D5475434D547543|,||,|fav",
+	[7] = "VST3:MAutoDynamicEq (MeldaProduction)	Favorite|,|MAutoDynamicEq.vst3|,||,|1975821305{4D656C646170726F4D6479414D647941|,||,|fav"
+}
